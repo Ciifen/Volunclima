@@ -542,8 +542,8 @@ def insertarPaginaMapaPrecipitacionMensual(pdf,isoCty,yIni,mIni,dfValStMon):
 			numRegPerPage=38#9,9,9
 			lstTblRegs=[10,14,14] """
 			numTbls=2
-			numRegPerPage=18#9,9
-			lstTblRegs=[9,9]
+			numRegPerPage=32#9,9
+			lstTblRegs=[16,16]
 		elif isoCty == "BO":
 			numTbls=3
 			numRegPerPage=38#9,9,9
@@ -698,6 +698,12 @@ def insertarPaginaAgradecimientos(pdf,dfObs):
 		pdf.add_page(orientation="P")
 		pdf.insertarAgradecimiento(False)
 
+def insertarPaginaAgradecimientos_instituciones(pdf):
+    # Agregar la página de pronósticos con los 4 PNG y el texto deseado
+    pdf.add_page(orientation="P")
+    pdf.insertarAgradecimientos_instituciones()
+
+
 def insertarPaginaPronosticos(pdf,isoCty):
     # Agregar la página de pronósticos con los 4 PNG y el texto deseado
     pdf.add_page(orientation="P")
@@ -731,6 +737,7 @@ def generarBoletinGeneral(isoCty,dfAllObs,dfValStMon,dfRepSeqs,dfExtreme,yIni,mI
 		insertarPaginaPronosticos(pdf,"GA")
 	insertarPaginaReqHidricosyConsejos(pdf,isoCty)
 	insertarPaginaAgradecimientos(pdf,dfAllObs)
+	insertarPaginaAgradecimientos_instituciones(pdf)
 	dirName = "/var/py/volunclima/salidas/boletines/"+isoCty+"/"+str(yIni)
 	nombre_pdf = dirName + "/Volunclima-" + strCountry + "_" + str(strMonth) + ".pdf"
 	if not os.path.exists(dirName):
@@ -827,7 +834,8 @@ def generarBoletinEstaciones(isoCty,dfAllObs,strStName,dfValStMon,dfRepSeqs,dfEx
 	dfValsFilled = acc.rellenarRegistros(dfVals,yIni,mIni,dIni,yEnd,mEnd,dEnd)
 	barras=graficarDatos(dfValsFilled,"barras en "+strStName)
 	insertarPaginaIndices(pdf,indices_concepto,barras,dfAcu5,dfAcu10,dfAcu15,valores_indices)
-	insertarPaginaAgradecimientos(pdf,dfAllObs)													 
+	insertarPaginaAgradecimientos(pdf,dfAllObs)	
+	insertarPaginaAgradecimientos_instituciones(pdf)												 
 	dirName = "/var/py/volunclima/salidas/boletines/"+isoCty+"/"+str(yIni)
 	nombre_pdf = dirName + "/" + strStName + "_" + str(strMonth) + ".pdf"
 	if not os.path.exists(dirName):
@@ -841,18 +849,23 @@ def generarBoletinEstaciones(isoCty,dfAllObs,strStName,dfValStMon,dfRepSeqs,dfEx
 
 class PDFVolunclimaJournal(FPDF):
 	def header(self):
-		titulo="Centro Internacional para la Investigación del Fenómeno de El Niño"
-		self.set_font("times","B",12)
-		title_w=self.get_string_width(titulo)+6
-		doc_w=self.w
-		self.set_x((doc_w-title_w-35)/2)
-		#self.set_x(0)
+		titulo = "Centro Internacional para la Investigación del"
+		titulo2 = "Fenómeno de El Niño"
+		self.set_font("times", "B", 12)
+		title_w = self.get_string_width(titulo) + 6
+		doc_w = self.w
+		self.set_x((doc_w - title_w - 35) / 2)
 		self.set_y(0)
 
-		self.set_fill_color(4,57, 103)
-		self.set_text_color(255,255,255)
-		self.cell(0,20,titulo, border=0,ln=1,fill=1)
-		self.image("logos.png", 155, 3, 45)
+		self.set_fill_color(4, 57, 103)
+		self.set_text_color(255, 255, 255)
+		self.cell(0, 20, "", border=0, ln=1, fill=1)
+		self.set_y(5)
+		self.cell(0, 5, titulo, border=0, ln=1, fill=1)
+		self.set_y(10)
+		self.cell(0, 5, titulo2, border=0, ln=1, fill=1)
+		self.set_y(0)
+		self.image("logos2.png", 97, 3, 100,15)
 		self.ln(20)
 	#pie de pagina
 	def footer(self):
@@ -1029,7 +1042,7 @@ class PDFVolunclimaJournal(FPDF):
 			dibujarTablaDeMatriz(self,mtxRegs, "", 9.5, 12, "L", "C", cell_width="uneven", x_start=50)#130
 
 	def insertarAgradecimiento(self, blnObs):
-		self.set_y(25)# titulo
+		self.set_y(25)  # t�tulo
 		self.set_font("times", "B", 16)
 		self.set_fill_color(29, 46, 51)
 		self.set_text_color(255, 255, 255)
@@ -1037,32 +1050,50 @@ class PDFVolunclimaJournal(FPDF):
 		self.set_text_color(0, 0, 0)
 		self.set_font("times", "", 12)
 		self.set_x(15)
-		self.set_y(38)#1 linea
-		self.cell(190, 10, "La red de observadores voluntarios del clima (Volunclima) ha sido implementada en el marco del proyecto")
-		self.set_y(43)#2 linea
-		self.cell(190, 10, "\"Euroclima+: Sequías e Inundaciones - Andes\", el cual ha sido financiado con recursos de la Unión Europea")
-		self.set_y(49)#3 linea
-		self.cell(190, 10, "y gestionado con el apoyo de la Agencia Española de Cooperación Internacional para el Desarrollo (AECID)")
-		self.set_y(55)#4 linea
-		self.cell(190, 10, " y la Agencia Francesa para el Desarrollo (AFD) del componente Gestión de Riesgo.")
-		self.set_y(60)#5 linea
+		self.set_y(38)#5 linea
 		self.cell(190, 10, "La red Volunclima está conformada por ciudadanos de Venezuela, Colombia, Ecuador, Perú, Bolivia y Chile")
-		self.set_y(66)#6 linea
+		self.set_y(43)#6 linea
 		self.cell(190, 10, "quienes colaboran en el monitoreo de las precipitaciones diarias, las condiciones de sequía y la ocurrencia")
-		self.set_y(72)#7 linea
+		self.set_y(49)#7 linea
 		self.cell(190, 10, "de eventos extremos.")
-		self.set_y(78)#8 linea
+		self.set_y(55)#8 linea
 		self.cell(190, 10, "Para mayor información y acceder a los datos reportados por los voluntarios puede acceder al sitio web")
-		self.set_y(84)#9 linea
+		self.set_y(61)#9 linea
 		self.cell(190, 10, "https://volunclima.ciifen.org.")
 		if blnObs:
-			self.set_y(96)#9 linea
+			self.set_y(73)#9 linea
 			self.cell(190, 10, "Agradecemos a los voluntarios que han enviado los reportes que han permitido elaborar este boletín:")
+
+	def insertarAgradecimientos_instituciones(self):
+		self.set_y(25)  # t�tulo
+		self.set_font("times", "B", 16)
+		self.set_fill_color(29, 46, 51)
+		self.set_text_color(255, 255, 255)
+		self.cell(190, 10, "Agradecimientos", align='C', fill=1)
+		self.set_text_color(0, 0, 0)
+		self.set_font("times", "", 12)
+		self.set_x(15)
+		self.set_y(37)#1 linea
+		self.multi_cell(190, 6, "Queremos expresar nuestra más sincera gratitud a todos los involucrados en los proyectos que han impulsado Volunclima. Desde sus inicios como un piloto en 2017 en la cuenca del río Chinchiná en Colombia en el marco del proyecto 'Cuencas Climáticamente Resilientes' con el financiamiento de USAID, continuó su expansión en el marco del proyecto 'Euroclima+: Sequías e Inundaciones - Andes', financiado por la Unión Europea, en múltiples países como Venezuela, Colombia, Ecuador, Bolivia y Chile. Nuestro agradecimiento también se extiende a todos los miembros de la red, cuya dedicación y colaboración son fundamentales para el éxito de Volunclima. Juntos, estamos trabajando ¡Gracias a nuestros valiosos proyectos y sus generosos donantes!", align='J')
+		# Agregar im�genes
+		images = ["euroclima+.png", "LOGO ENANDES.jpg", "usaid.png"]
+		x_positions = [25, 110, 57.5]  # Posiciones x de las im�genes
+		y_position = 91  # Posici�n y de las im�genes
+
+		for img, x in zip(images, x_positions):
+			if(img=="usaid.png"):
+				self.add_image(img, x, 141, 80, 30)  # Ajustar el ancho y alto seg�n sea necesario
+			else:
+				self.add_image(img, x, y_position, 70, 40)  # Ajustar el ancho y alto seg�n sea necesario
+
+
+	def add_image(self, filename, x, y, w, h):
+		self.image(filename, x, y, w, h)
 
 
 	def insertarTablasObservadores(self, arrMtxRegs):
 		for idx in range(len(arrMtxRegs)):
-			self.set_y(102)#altura de acuerdo a la ubicación de la última linea en pdf.insertarAgradecimiento
+			self.set_y(79)#altura de acuerdo a la ubicación de la última linea en pdf.insertarAgradecimiento
 			if idx==0:
 				dibujarTablaDeMatriz(self,arrMtxRegs[0], " ", 9.5, 11, "L", "C", cell_width=[44,44], x_start=9)#130
 			else:
@@ -1142,7 +1173,7 @@ class PDFVolunclimaJournal(FPDF):
 			for idx in range(len(arrMtxRegs)):
 				if idx==0:
 					self.set_y(125)
-					dibujarTablaDeMatriz(self,arrMtxRegs[0], "   ", 9.5, 11, "L", "C", cell_width=[35,35,17], x_start=9, parametro='precipitacion',dfValues=dfValStMon
+					dibujarTablaDeMatriz(self,arrMtxRegs[0], "   ", 9.5, 11, "L", "C", cell_width=[40,35,17], x_start=9, parametro='precipitacion',dfValues=dfValStMon
 					,yyyy=yIni,mm=mIni)#130
 				else:
 					self.set_y(125)
