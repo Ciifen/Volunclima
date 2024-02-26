@@ -1,7 +1,7 @@
 import accesoDatosVolunclima as acc
 import boletinVolunclima as bv
 import plottingVolunclima as pv
-
+import openpyxl
 import psycopg2
 import pandas as pd
 from dateutil.relativedelta import relativedelta
@@ -73,12 +73,16 @@ MAIL_PORT = 465
 
 #observadores externos
 observadoresExternosEcuador= [("Observadorexterno1","Observadorexterno1@gmail.com"), ("Observadorexterno2","Observadorexterno2@gmail.com")]
+observadoresExternosVenezuela= []
+observadoresExternosColombia= []
+observadoresExternosBolivia= []
+observadoresExternosChile= []
 #mails con excepciones
 excepciones= ["mail1@gmail.com","mail2@gmail.com"]
 
 #generarBoletin y enviarCorreo boolean para generar o enviar por correo los boletines. observadoresExternos es un argumento opcional
 #que debe ser una lista de tuplas [(nombre,correo),etc..], para poner personas a las que enviar boletin que no son voluntarios
-def GenerarBoletinGeneralMensual (isoCty,yIni,mIni,generarBoletin, enviarCorreo, observadoresExternos=[]):
+def GeneraryEnviarBoletinGeneralMensual (isoCty,yIni,mIni,generarBoletin, enviarCorreo):
 	warnings.filterwarnings('ignore')
 	yEnd=yIni
 	mEnd=mIni
@@ -90,6 +94,16 @@ def GenerarBoletinGeneralMensual (isoCty,yIni,mIni,generarBoletin, enviarCorreo,
 	except Exception as err:
 		print("Ocurrió un error intentando conectarse a la base de datos. Error: ", err)
 		return
+	if(isoCty=="EC"):
+		observadoresExternos=observadoresExternosEcuador
+	elif(isoCty=="VE"):
+		observadoresExternos=observadoresExternosVenezuela
+	elif(isoCty=="CO"):
+		observadoresExternos=observadoresExternosColombia
+	elif(isoCty=="BO"):
+		observadoresExternos=observadoresExternosBolivia
+	elif(isoCty=="CL"):
+		observadoresExternos=observadoresExternosChile
 
 	if(generarBoletin == True):
 		#GENERANDO MAPA DE PRECIPITACION MENSUAL
@@ -166,7 +180,7 @@ def GenerarBoletinGeneralMensual (isoCty,yIni,mIni,generarBoletin, enviarCorreo,
 
 #generarBoletin y enviarCorreo boolean para generar o enviar por correo los boletines. 
 #codigoEstacion es un argumento opcional para poder generar el boletin o enviar correos a una estación específica
-def EnviarBoletinesEstacionesMensual (isoCty,yIni,mIni,generarBoletin, enviarCorreo, codigoEstacion=[]):
+def GeneraryEnviarBoletinesEstacionesMensual (isoCty,yIni,mIni,generarBoletin, enviarCorreo, codigoEstacion=[]):
 	warnings.filterwarnings('ignore')
 	yEnd=yIni
 	mEnd=mIni
@@ -445,6 +459,243 @@ def enviar_boletines(MAIL_RECIEVER, nombre_observador, archivo, mIni, yIni, strC
 	except:
 		print(f"An error occurred: {e}")
 
+def email_login():
+	try:
+		server = smtplib.SMTP_SSL(MAIL_SERVER, MAIL_PORT)
+		server.login(MAIL_USER,MAIL_PASSWORD)
+		return server
+	except Exception as e:
+		print(f"An error occurred: {e}")
+
+def formato_mes(nombre_mes):
+
+    months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre',
+              'Noviembre', 'Diciembre']
+    if str(nombre_mes).isnumeric(): #es num:
+        return months[int(nombre_mes) - 1]
+    else:#es str
+        return months.index(nombre_mes.title())+1
+
+#que debe ser una lista de tuplas [(nombre,correo),etc..], para poner personas a las que enviar boletin que no son voluntarios
+def envio (isoCty,observadoresExternos=[]):
+	warnings.filterwarnings('ignore')
+
+	try:
+		conn = psycopg2.connect(database="precdb", user="****", password="*************", host="*********", port="****")
+	except Exception as err:
+		print("Ocurrió un error intentando conectarse a la base de datos. Error: ", err)
+		return
+
+	dfAllStations = acc.ObtenerEstacionesDePais(conn,isoCty,' ','A')#dfAllStations = acc.ObtenerEstacionesActivasPluvioDePais(conn,isoCty)
+	dfObs = acc.ObtenerObservadoresDeListaEstaciones(conn,dfAllStations)
+	if len(dfObs.index)<1:
+		print("No hay observadores a los que enviar correo.")
+		conn.close()
+		return
+
+	server=email_login()
+	observadoresUnicos=[]
+	for idxObs in range(len(dfObs.index)):
+		nombre= dfObs.iloc[idxObs,1]+ " " + dfObs.iloc[idxObs,2]
+		correo = dfObs.iloc[idxObs,3]	
+		observador = (nombre, correo)
+		if observador not in observadoresUnicos and correo not in excepciones:
+			observadoresUnicos.append(observador)
+			#AQUI SE DEBEN ENVIAR LOS CORREOS A TODOS LOS OBSERVADORES
+			enviar_flyers(correo, nombre,server)	
+
+	for i in range(len(observadoresExternos)):
+		nombre= observadoresExternos[i][0]
+		correo = observadoresExternos[i][1]
+		#AQUI SE ENVIAN LOS CORREOS A LOS VOLUNTARIOS QUE NO SON OBSERVADORES PERO IGUAL USAN EL BOLETIN, ES UNA LISTA DE TUPLAS [(nombre,correo)]
+		#lo estoy usando como prueba introduciendo nombres y correos
+		enviar_flyers(correo, nombre,server)
+	
+	server.quit()
+	conn.close()
+
+def obtenerEstacionesSinReportarQuincena (isoCty,yIni,mIni):
+	warnings.filterwarnings('ignore')
+	yEnd=yIni
+	mEnd=mIni
+	dIni=1
+	dEnd = 15
+
+	try:
+		conn = psycopg2.connect(database="precdb", user="****", password="*************", host="*********", port="****")
+	except Exception as err:
+		print("Ocurrió un error intentando conectarse a la base de datos. Error: ", err)
+		return
+	#GENERANDO MAPA DE PRECIPITACION MENSUAL
+	#Obteniendo estaciones con datos de precipitacion en el periodo consultado.
+	#dfAllStations = acc.ObtenerEstacionesDePais(conn,isoCty,'P','A')
+	dfStationsWPrec = acc.ObtenerEstacionesConDatosPrecipitacionMes2(conn,isoCty,yIni,mIni,dIni,yEnd,mEnd,dEnd)
+	""" dfStationsWPrec['lat'] = dfStationsWPrec.apply (lambda row: float(dfAllStations.loc[dfAllStations['id']==row.id]['lat'].values[0]), axis=1)
+	dfStationsWPrec['long'] = dfStationsWPrec.apply (lambda row: float(dfAllStations.loc[dfAllStations['id']==row.id]['long'].values[0]), axis=1) """
+	pd.set_option('display.max_rows', None)
+	pd.set_option('display.max_columns', None)
+	df=dfStationsWPrec[dfStationsWPrec['dias'] < 11][['id', 'codigo', 'nombre', 'dias']]
+	""" print(acc.ObtenerPrecipitacionDiariaDeEstacion(conn, "1", yIni, mIni, 1, yEnd, mEnd, 30))
+	print(acc.ObtenerPrecipitacionAcumuladaDeEstacion(conn, "1", yIni, mIni, 1, yEnd, mEnd, 30)) """
+	filas_como_string = df.apply(lambda row: f"ID: {row['id']}, Código: {row['codigo']}, Nombre: {row['nombre']}, Días: {row['dias']}", axis=1)
+	# Supongamos que filas_como_string es tu Serie con las filas convertidas en cadenas
+	filas_como_string = filas_como_string.astype(str)  # Asegurémonos de que todas las entradas sean de tipo str
+
+	# Combina las cadenas con saltos de línea
+	cadena_final = '<br>'.join(filas_como_string)
+	print(cadena_final)
+	strCountry=acc.obtenerNombrePais(isoCty)
+	server=email_login()
+	enviar_no_reportados("observadores@ciifen.org", strCountry, mIni, yIni, " hasta el día 15 ", cadena_final,  server)
+	server.quit()
+	conn.close()
+
+def obtenerEstacionesSinReportarFinDeMes (isoCty,yIni,mIni):
+	warnings.filterwarnings('ignore')
+	yEnd=yIni
+	mEnd=mIni
+	dIni=16
+	dEnd = monthrange(int(yIni), int(mIni))[1]
+
+	try:
+		conn = psycopg2.connect(database="precdb", user="****", password="*************", host="*********", port="****")
+	except Exception as err:
+		print("Ocurrió un error intentando conectarse a la base de datos. Error: ", err)
+		return
+	#GENERANDO MAPA DE PRECIPITACION MENSUAL
+	#Obteniendo estaciones con datos de precipitacion en el periodo consultado.
+	dfStationsWPrec = acc.ObtenerEstacionesConDatosPrecipitacionMes2(conn,isoCty,yIni,mIni,dIni,yEnd,mEnd,dEnd)
+	pd.set_option('display.max_rows', None)
+	pd.set_option('display.max_columns', None)
+	df=dfStationsWPrec[dfStationsWPrec['dias'] < 11][['id', 'codigo', 'nombre', 'dias']]
+	filas_como_string = df.apply(lambda row: f"ID: {row['id']}, Código: {row['codigo']}, Nombre: {row['nombre']}, Días: {row['dias']}", axis=1)
+	filas_como_string = filas_como_string.astype(str)  # Asegurémonos de que todas las entradas sean de tipo str
+
+	# Combina las cadenas con saltos de línea
+	cadena_final = '<br>'.join(filas_como_string)
+	print(cadena_final)
+	strCountry=acc.obtenerNombrePais(isoCty)
+	server=email_login()
+	enviar_no_reportados("observadores@ciifen.org", strCountry, mIni, yIni, " desde el día 16 en adelante ", cadena_final,  server)
+	server.quit()
+	conn.close()
+
+def obtenerEstacionesSinReportarAnual (isoCty,yIni,mIni):
+	warnings.filterwarnings('ignore')
+	#yEnd=yIni
+	yIni=2023
+	yEnd=2023
+	mIni=1
+	mEnd=12
+	dIni=1
+	dEnd = monthrange(int(yIni), int(mEnd))[1]
+
+	try:
+		conn = psycopg2.connect(database="precdb", user="****", password="*************", host="*********", port="****")
+	except Exception as err:
+		print("Ocurrió un error intentando conectarse a la base de datos. Error: ", err)
+		return
+	#GENERANDO MAPA DE PRECIPITACION MENSUAL
+	#Obteniendo estaciones con datos de precipitacion en el periodo consultado.
+	dfStationsWPrec = acc.ObtenerEstacionesConDatosPrecipitacionMes2(conn,isoCty,yIni,mIni,dIni,yEnd,mEnd,dEnd)
+	
+	pd.set_option('display.max_rows', None)
+	pd.set_option('display.max_columns', None)
+	#print(dfStationsWPrec)
+	df=dfStationsWPrec[dfStationsWPrec['dias'] > 350][['id', 'codigo', 'nombre', 'dias']]
+	print(df)
+	filas_como_string = df.apply(lambda row: f"ID: {row['id']}, Código: {row['codigo']}, Nombre: {row['nombre']}, Días: {row['dias']}", axis=1)
+	filas_como_string = filas_como_string.astype(str)  # Asegurémonos de que todas las entradas sean de tipo str
+
+	# Combina las cadenas con saltos de línea
+	cadena_final = '<br>'.join(filas_como_string)
+	
+	""" strCountry=acc.obtenerNombrePais(isoCty)
+	server=email_login()
+	enviar_no_reportados("observadores@ciifen.org", strCountry, mIni, yIni, "", cadena_final,  server, anual=False)
+	server.quit() """
+	conn.close()
+
+
+def envio_correos_seguimiento(nombre_archivo):
+	# Lista para almacenar las tuplas de datos
+	datos = []
+
+	# Cargando el archivo xlsx
+	wb = openpyxl.load_workbook(nombre_archivo)
+	# Seleccionando la primera hoja del libro
+	sheet = wb.active
+	server=email_login()
+	# Iterando sobre las filas del archivo xlsx
+	for fila in sheet.iter_rows(min_row=3, max_col=12):
+		# Comprobando si la primera columna no est� vac�a
+		if fila[0].value:
+			# Obteniendo los valores de la cuarta, sexta y onceava columna
+			valor1 = fila[4].value if fila[4].value else ''
+			valor2 = fila[6].value if fila[6].value else ''
+			valor3 = fila[11].value if fila[11].value else ''
+			# Creando la tupla y agreg�ndola a la lista de datos
+			datos.append((valor1, valor2, valor3))
+
+	for dato in datos:
+		if dato[0]=="-SIN OBSERVADOR-":
+			pass
+		else:
+			enviar_correo_analisis(dato[1], dato[0],dato[2], server)
+			#enviar_correo_analisis("r.zevallos@ciifen.org", dato[0],dato[2], server)
+			
+	server.quit()
+
+#funciona de enviar correos para todas las estaciones MAIL_RECIEVER, nombre_observador, archivo, mIni, yIni, strCountry, dfObs, server
+def enviar_correo_analisis(MAIL_RECIEVER, nombre,codigo, server):
+	#mensaje del email
+	msg=MIMEMultipart('mixed')
+	msg["Subject"]="Seguimiento de datos climáticos en las estaciones de la red Voluncima"
+
+	msg["From"]=MAIL_USER.strip()
+	with open("/var/py/volunclima/scripts/boletines/logo_CIIFEN.png", "rb") as img:
+		image_data = img.read()
+
+	# HTML
+	html_content = """
+	<p class="MsoNormal" style="font-size: 12pt; margin: 0cm 0cm 0.0001pt; font-family: 'times new roman' , serif; color: #222222;"><b><span style="font-family: 'calibri' , sans-serif; color: #17365d;">Volunclima</span></b><b><i><span style="font-size: 9pt; font-family: 'calibri' , sans-serif; color: #1f497d;"><br /></span></i></b></p>
+	<p class="MsoNormal" style="font-size: 12pt; margin: 0cm 0cm 0.0001pt; font-family: 'times new roman' , serif; color: #222222;"><i><span style="font-size: 9pt; font-family: 'calibri' , sans-serif; color: black;">Centro Internacional para la Investigaci&oacute;n</span></i><span style="font-size: 11pt; font-family: 'calibri' , sans-serif; color: black;"><u></u><u></u></span></p>
+	<p class="MsoNormal" style="font-size: 12pt; margin: 0cm 0cm 0.0001pt; font-family: 'times new roman' , serif; color: #222222;"><i><span style="font-size: 9pt; font-family: 'calibri' , sans-serif; color: black;">del Fen&oacute;meno de El Ni&ntilde;o- CIIFEN</span></i><span style="font-size: 11pt; font-family: 'calibri' , sans-serif; color: black;"><u></u><u></u></span></p>
+	<p class="MsoNormal" style="font-size: 12pt; margin: 0cm 0cm 0.0001pt; font-family: 'times new roman' , serif; color: #222222;"><i><span style="font-size: 9pt; font-family: 'calibri' , sans-serif; color: black;">Direcci&oacute;n: Puerto Santa Ana, Ciudad del r&iacute;o. Edificio The Point, Of. 1904.</span></i></p>
+	<p class="MsoNormal" style="font-size: 12pt; margin: 0cm 0cm 0.0001pt; font-family: 'times new roman' , serif; color: #222222;"><i><span lang="PT" style="font-size: 9pt; font-family: 'calibri' , sans-serif; color: black;">Guayaquil - Ecuador</span></i><span style="font-size: 11pt; font-family: 'calibri' , sans-serif; color: black;"><u></u><u></u></span><span style="font-size: 10pt; font-family: 'calibri' , sans-serif; color: #000000;"><strong></strong></span></p>
+	<div><em><span style="font-size: 10pt; font-family: 'calibri' , sans-serif;">Web site:&nbsp;<span class="Object" id="OBJ_PREFIX_DWT629_com_zimbra_url" style="color: #005a95;"><span class="Object" id="OBJ_PREFIX_DWT592_com_zimbra_url"><a href="https://ciifen.org/" rel="noopener nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer" style="color: #000000;" target="_blank">ciifen.org</a></span></span>&nbsp;&nbsp;<span class="Object" id="OBJ_PREFIX_DWT630_com_zimbra_url" style="color: #005a95;"><span class="Object" id="OBJ_PREFIX_DWT593_com_zimbra_url"><a href="https://crc-osa.ciifen.org/" rel="noopener nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer" style="color: #000000;" target="_blank">crc-osa.ciifen.org</a></span></span>&nbsp;&nbsp;</span></em></div>
+	<div><span style="font-size: 10pt; font-family: 'calibri' , sans-serif;"><strong><span style="color: #333399;"><span style="color: #0000ff;"><span class="Object" id="OBJ_PREFIX_DWT631_com_zimbra_url" style="color: #005a95;"><span class="Object" id="OBJ_PREFIX_DWT594_com_zimbra_url"><a href="https://www.facebook.com/CIIFEN/" rel="noopener nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer" style="color: #0000ff;" target="_blank">Facebook</a></span></span></span>&nbsp;|&nbsp;<span style="color: #0000ff;"><span class="Object" id="OBJ_PREFIX_DWT632_com_zimbra_url" style="color: #005a95;"><span class="Object" id="OBJ_PREFIX_DWT595_com_zimbra_url"><a href="https://x.com/ciifen" rel="noopener nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer" style="color: #0000ff;" target="_blank">X</a></span></span></span>&nbsp;|&nbsp;<span style="color: #0000ff;"><span class="Object" id="OBJ_PREFIX_DWT633_com_zimbra_url" style="color: #005a95;"><span class="Object" id="OBJ_PREFIX_DWT596_com_zimbra_url"><a href="https://www.youtube.com/user/CIIFEN" rel="noopener nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer" style="color: #0000ff;" target="_blank">YouTube</a></span></span></span>&nbsp;|&nbsp;<span style="color: #0000ff;"><span class="Object" id="OBJ_PREFIX_DWT634_com_zimbra_url" style="color: #005a95;"><span class="Object" id="OBJ_PREFIX_DWT597_com_zimbra_url"><a href="https://www.instagram.com/ciifenorg/" rel="noopener nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer" style="color: #0000ff;" target="_blank">Instagram</a></span></span></span>&nbsp;|&nbsp;<span style="color: #0000ff;"><span class="Object" id="OBJ_PREFIX_DWT635_com_zimbra_url" style="color: #005a95;"><span class="Object" id="OBJ_PREFIX_DWT598_com_zimbra_url"><a href="https://www.linkedin.com/company/ciifen/" rel="noopener nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer nofollow noopener noreferrer" style="color: #0000ff;" target="_blank">Linkedin</a></span></span></span></span></strong></span></div>
+	<p class="MsoNormal" style="font-size: 12pt; margin: 0cm 0cm 0.0001pt; font-family: 'times new roman' , serif; color: #222222;"><i><span style="font-size: 9pt; font-family: 'calibri' , sans-serif; color: black;"><img width="103" height="117" src="cid:ciifen_logo" /></span></i></p>
+	""".format(base64.b64encode(image_data).decode('utf-8'))
+
+	img_attachment = MIMEImage(image_data, name="ciifen_logo.png")
+	img_attachment.add_header('Content-ID', '<ciifen_logo>')
+	img_attachment.add_header('Content-Disposition', 'inline')  # Esto oculta el adjunto
+	# Adjunta la imagen redimensionada al mensaje
+
+	# Cuerpo del mensaje, sustituir nombre con el nombre de cada observador, todo lo que queda de codigo va dentro del for
+	msg["To"]=MAIL_RECIEVER.strip() #correo dentro del for
+	cuerpo_mensaje=""
+	if codigo==1:
+		cuerpo_mensaje = ("<br><br>Estimado/a "+nombre+",<br><br><br>Esperamos se encuentre bien, desde el CIIFEN le extendemos un caluroso saludo, le escribimos por un tema relacionado con la red de observadores climáticos “Volunclima”, según nuestros registros, usted pertenece como voluntario con una estación y pluviómetro asignado. <br>Nos encontramos en una mejora continua y por lo tanto, hemos realizado un análisis de la información de los registros climáticos y no logramos encontrar datos de su estación. Sin afán de asumir alguna posición al respecto, le escribimos para poder obtener información sobre este tema, ya que puede darse el caso de que usted no ha recibido la adecuada capacitación para poder participar activamente en el programa. También existe la posibilidad de que, si ha tomado lecturas del equipo y los ha anotado en la hoja de registro, si este es el caso le invitamos a que nos los comparta por este medio sus planillas para poder subirlas a nuestra base de datos y usar los datos de la mejor manera, entregándole a usted productos climáticos que le sirvan en sus actividades productivas y en su diario vivir. <br>Esas son algunas de las razones que se nos ocurre por las cuales sus registros no aparecen en el sistema, es por ello que le escribimos para poder obtener una respuesta sobre lo que ha sucedido y de esta forma brindarle nuestro apoyo en lo que se requiera para fortalecer su participación en el programa. <br>Cabe resaltar que cuenta con nuestro respaldo para poder solventar todas sus inquietudes y comentarios. Quedamos muy agradecidos de antemano por su respuesta y responsabilidad con la red.<br>Su compromiso como voluntario climático es vital para nosotros.<br>Saludos Cordiales.<br><br>" )
+	elif codigo==2:
+		cuerpo_mensaje = ("<br><br>Estimado/a "+nombre+",<br><br><br>Esperamos se encuentre bien, desde el CIIFEN le extendemos un caluroso saludo, le escribimos por un tema relacionado con la red de observadores climáticos “Volunclima”.<br>Nos encontramos en una mejora continua y se ha realizado un análisis de datos de los registros climáticos que ustedes nos proporcionan. Sin embargo, nos arroja que, al día de hoy, no se encuentra información registrada por parte de usted. Es por ello que le invitamos a que nos comente, si ha tenido dificultades para realizar la lectura del pluviómetro a las horas indicadas, si requiere capacitación de nuestra parte o alguna otra cosa que esté a nuestro alcance para brindarle soporte y apoyo técnico. <br>Deseamos poder afirmar y consolidar su participación en el programa, para ello requerimos su respuesta y confirmación contando con usted y su compromiso como voluntario climático.<br>Saludos Cordiales.<br><br>")
+	elif codigo==3:
+		cuerpo_mensaje = ("<br><br>Estimado/a "+nombre+",<br><br><br>Esperamos se encuentre bien, desde el CIIFEN le extendemos un caluroso saludo, le escribimos por un tema relacionado con la red de observadores climáticos “Volunclima”.<br>Nos encontramos en una mejora continua, por lo tanto, estamos haciendo el seguimiento a la red y para brindarle el apoyo necesario a nuestros voluntarios hemos realizado un análisis de identificación para conocer quienes necesitan mayor soporte en el programa. <br>Entendemos que los primeros meses de integración a la red pueden ser un poco complicado, es por ello que le enviamos este correo para animarle a que continue con la labor de ser un voluntario/a climático/a. Además, a fin de conocer en lo que podemos ayudar para que su participación en el programa transcurra de la forma más amena y fácil posible, le invitamos a que nos comente si requiere capacitación tanto para el uso de las plataformas digitales de Volunclima como para la lectura del equipo.<br>Estaremos muy agradecidos con su respuesta y estamos atentos a despejar todas sus inquietudes para poderle brindar el apoyo necesario y continuar con su proceso como observador climático. <br> Saludos Cordiales.<br><br>")
+	elif codigo==4:
+		cuerpo_mensaje = ("<br><br>Estimado/a "+nombre+",<br><br><br>Esperamos que se encuentre bien, desde CIIFEN le extendemos nuestros saludos escribiéndole por temas relacionados con la red Volunclima, específicamente por la estación ubicada en el Cuerpo de Bomberos de Pimocha. La estación lleva poco tiempo de ser creada, sin embargo, aún no se ha logrado asignar un observador que pueda reportarnos datos a la plataforma. Por lo cual, requerimos su atención en el tema para la identificación de una persona que voluntariamente reporte los datos registrados por los pluviómetros y demás datos climáticos que se pueden emitir por la app móvil. <br>Quedamos atentos a su respuesta y les agradecemos por su gestión. <br>Saludos Cordiales.<br><br>")
+	else:
+		return
+
+	# Agregar el cuerpo del mensaje y el HTML al objeto mensaje
+	msg.attach(img_attachment)
+	msg.attach(MIMEText(cuerpo_mensaje+html_content, 'html'))
+	#adjuntar boletin en formato pdf
+	#enviar el email
+	try:
+		server.send_message(msg)
+	except:
+		print(f"An error occurred: {e}")
 
 #funciona de enviar correos para todas las estaciones
 def enviar_flyers(MAIL_RECIEVER, nombre_observador,  server):
@@ -565,7 +816,9 @@ def enviar_no_reportados(MAIL_RECIEVER,	strCountry, mIni, yIni, dias, texto,  se
 		cuerpo_mensaje = ("Estos son los voluntarios que han reportado menos de 11 días "+dias+"en el mes de "+ mes +" de "+ str(yIni) +" en "+strCountry+"<br><br>"+texto+
 		"<br><br>Saludos cordiales,<br><br>" )
 	else:
-		cuerpo_mensaje = ("Estos son los voluntarios que han reportado menos de 256 días en "+ str(yIni) +" en "+strCountry+"<br><br>"+texto+
+		""" cuerpo_mensaje = ("Estos son los voluntarios que han reportado menos de 256 días en "+ str(yIni) +" en "+strCountry+"<br><br>"+texto+
+		"<br><br>Saludos cordiales,<br><br>" ) """
+		cuerpo_mensaje = ("Estos son los voluntarios que han reportado menos de 1 día desde el 2020 hasta ahora en "+strCountry+"<br><br>"+texto+
 		"<br><br>Saludos cordiales,<br><br>" )
 	
 	# Agregar el cuerpo del mensaje y el HTML al objeto mensaje
@@ -577,169 +830,6 @@ def enviar_no_reportados(MAIL_RECIEVER,	strCountry, mIni, yIni, dias, texto,  se
 		server.send_message(msg)
 	except:
 		print(f"An error occurred: {e}")
-def email_login():
-	try:
-		server = smtplib.SMTP_SSL(MAIL_SERVER, MAIL_PORT)
-		server.login(MAIL_USER,MAIL_PASSWORD)
-		return server
-	except Exception as e:
-		print(f"An error occurred: {e}")
-
-def formato_mes(nombre_mes):
-
-    months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre',
-              'Noviembre', 'Diciembre']
-    if str(nombre_mes).isnumeric(): #es num:
-        return months[int(nombre_mes) - 1]
-    else:#es str
-        return months.index(nombre_mes.title())+1
-
-
-#que debe ser una lista de tuplas [(nombre,correo),etc..], para poner personas a las que enviar boletin que no son voluntarios
-def envio (isoCty,observadoresExternos=[]):
-	warnings.filterwarnings('ignore')
-
-	try:
-		conn = psycopg2.connect(database="precdb", user="****", password="*************", host="*********", port="****")
-	except Exception as err:
-		print("Ocurrió un error intentando conectarse a la base de datos. Error: ", err)
-		return
-
-	dfAllStations = acc.ObtenerEstacionesDePais(conn,isoCty,' ','A')#dfAllStations = acc.ObtenerEstacionesActivasPluvioDePais(conn,isoCty)
-	dfObs = acc.ObtenerObservadoresDeListaEstaciones(conn,dfAllStations)
-	if len(dfObs.index)<1:
-		print("No hay observadores a los que enviar correo.")
-		conn.close()
-		return
-
-	server=email_login()
-	observadoresUnicos=[]
-	for idxObs in range(len(dfObs.index)):
-		nombre= dfObs.iloc[idxObs,1]+ " " + dfObs.iloc[idxObs,2]
-		correo = dfObs.iloc[idxObs,3]	
-		observador = (nombre, correo)
-		if observador not in observadoresUnicos and correo not in excepciones:
-			observadoresUnicos.append(observador)
-			#AQUI SE DEBEN ENVIAR LOS CORREOS A TODOS LOS OBSERVADORES
-			enviar_flyers(correo, nombre,server)	
-
-	for i in range(len(observadoresExternos)):
-		nombre= observadoresExternos[i][0]
-		correo = observadoresExternos[i][1]
-		#AQUI SE ENVIAN LOS CORREOS A LOS VOLUNTARIOS QUE NO SON OBSERVADORES PERO IGUAL USAN EL BOLETIN, ES UNA LISTA DE TUPLAS [(nombre,correo)]
-		#lo estoy usando como prueba introduciendo nombres y correos
-		enviar_flyers(correo, nombre,server)
-	
-	server.quit()
-	conn.close()
-
-def obtenerEstacionesSinReportarQuincena (isoCty,yIni,mIni):
-	warnings.filterwarnings('ignore')
-	yEnd=yIni
-	mEnd=mIni
-	dIni=1
-	dEnd = 15
-
-	try:
-		conn = psycopg2.connect(database="precdb", user="****", password="*************", host="*********", port="****")
-	except Exception as err:
-		print("Ocurrió un error intentando conectarse a la base de datos. Error: ", err)
-		return
-	#GENERANDO MAPA DE PRECIPITACION MENSUAL
-	#Obteniendo estaciones con datos de precipitacion en el periodo consultado.
-	#dfAllStations = acc.ObtenerEstacionesDePais(conn,isoCty,'P','A')
-	dfStationsWPrec = acc.ObtenerEstacionesConDatosPrecipitacionMes(conn,isoCty,yIni,mIni,dIni,yEnd,mEnd,dEnd)
-	""" dfStationsWPrec['lat'] = dfStationsWPrec.apply (lambda row: float(dfAllStations.loc[dfAllStations['id']==row.id]['lat'].values[0]), axis=1)
-	dfStationsWPrec['long'] = dfStationsWPrec.apply (lambda row: float(dfAllStations.loc[dfAllStations['id']==row.id]['long'].values[0]), axis=1) """
-	pd.set_option('display.max_rows', None)
-	pd.set_option('display.max_columns', None)
-	df=dfStationsWPrec[dfStationsWPrec['dias'] < 11][['id', 'codigo', 'nombre', 'dias']]
-	""" print(acc.ObtenerPrecipitacionDiariaDeEstacion(conn, "1", yIni, mIni, 1, yEnd, mEnd, 30))
-	print(acc.ObtenerPrecipitacionAcumuladaDeEstacion(conn, "1", yIni, mIni, 1, yEnd, mEnd, 30)) """
-	filas_como_string = df.apply(lambda row: f"ID: {row['id']}, Código: {row['codigo']}, Nombre: {row['nombre']}, Días: {row['dias']}", axis=1)
-	# Supongamos que filas_como_string es tu Serie con las filas convertidas en cadenas
-	filas_como_string = filas_como_string.astype(str)  # Asegurémonos de que todas las entradas sean de tipo str
-
-	# Combina las cadenas con saltos de línea
-	cadena_final = '<br>'.join(filas_como_string)
-	print(cadena_final)
-	strCountry=acc.obtenerNombrePais(isoCty)
-	server=email_login()
-	enviar_no_reportados("mail1@mail.org", strCountry, mIni, yIni, " hasta el día 15 ", cadena_final,  server)
-	server.quit()
-	conn.close()
-
-def obtenerEstacionesSinReportarFinDeMes (isoCty,yIni,mIni):
-	warnings.filterwarnings('ignore')
-	yEnd=yIni
-	mEnd=mIni
-	dIni=16
-	dEnd = monthrange(int(yIni), int(mIni))[1]
-
-	try:
-		conn = psycopg2.connect(database="precdb", user="****", password="*************", host="*********", port="****")
-	except Exception as err:
-		print("Ocurrió un error intentando conectarse a la base de datos. Error: ", err)
-		return
-	#GENERANDO MAPA DE PRECIPITACION MENSUAL
-	#Obteniendo estaciones con datos de precipitacion en el periodo consultado.
-	dfStationsWPrec = acc.ObtenerEstacionesConDatosPrecipitacionMes(conn,isoCty,yIni,mIni,dIni,yEnd,mEnd,dEnd)
-	pd.set_option('display.max_rows', None)
-	pd.set_option('display.max_columns', None)
-	df=dfStationsWPrec[dfStationsWPrec['dias'] < 11][['id', 'codigo', 'nombre', 'dias']]
-	filas_como_string = df.apply(lambda row: f"ID: {row['id']}, Código: {row['codigo']}, Nombre: {row['nombre']}, Días: {row['dias']}", axis=1)
-	filas_como_string = filas_como_string.astype(str)  # Asegurémonos de que todas las entradas sean de tipo str
-
-	# Combina las cadenas con saltos de línea
-	cadena_final = '<br>'.join(filas_como_string)
-	print(cadena_final)
-	strCountry=acc.obtenerNombrePais(isoCty)
-	server=email_login()
-	enviar_no_reportados("mail1@mail.org", strCountry, mIni, yIni, " desde el día 16 en adelante ", cadena_final,  server)
-	server.quit()
-	conn.close()
-
-def obtenerEstacionesSinReportarAnual (isoCty,yIni,mIni):
-	warnings.filterwarnings('ignore')
-	yEnd=yIni
-	mEnd=12
-	dIni=1
-	dEnd = monthrange(int(yIni), int(mEnd))[1]
-
-	try:
-		conn = psycopg2.connect(database="precdb", user="****", password="*************", host="*********", port="****")
-	except Exception as err:
-		print("Ocurrió un error intentando conectarse a la base de datos. Error: ", err)
-		return
-	#GENERANDO MAPA DE PRECIPITACION MENSUAL
-	#Obteniendo estaciones con datos de precipitacion en el periodo consultado.
-	dfStationsWPrec = acc.ObtenerEstacionesConDatosPrecipitacionMes(conn,isoCty,yIni,mIni,dIni,yEnd,mEnd,dEnd)
-	pd.set_option('display.max_rows', None)
-	pd.set_option('display.max_columns', None)
-	df=dfStationsWPrec[dfStationsWPrec['dias'] < 256][['id', 'codigo', 'nombre', 'dias']]
-	filas_como_string = df.apply(lambda row: f"ID: {row['id']}, Código: {row['codigo']}, Nombre: {row['nombre']}, Días: {row['dias']}", axis=1)
-	filas_como_string = filas_como_string.astype(str)  # Asegurémonos de que todas las entradas sean de tipo str
-
-	# Combina las cadenas con saltos de línea
-	cadena_final = '<br>'.join(filas_como_string)
-	print(cadena_final)
-	strCountry=acc.obtenerNombrePais(isoCty)
-	server=email_login()
-	enviar_no_reportados("mail1@mail.org", strCountry, mIni, yIni, "", cadena_final,  server, anual=False)
-	server.quit()
-	conn.close()
-
-# GenerarBoletinGeneralMensual("CO",2023,12,False,True)
-# GenerarBoletinGeneralMensual("EC",2023,12,False,True,observadoresExternosEcuador)
-# GenerarBoletinGeneralMensual("VE",2023,12,False,True)
-# GenerarBoletinGeneralMensual("BO",2023,12,False,True)
-# GenerarBoletinGeneralMensual("CL",2023,12,False,True)
-
-# EnviarBoletinesEstacionesMensual ("CO",2023,12,False,True)
-# EnviarBoletinesEstacionesMensual ("EC",2023,12,False,True)
-# EnviarBoletinesEstacionesMensual ("VE",2023,12,False,True)
-# EnviarBoletinesEstacionesMensual ("BO",2023,12,False,True)
-# EnviarBoletinesEstacionesMensual ("CL",2023,12,False,True)
 
 
 
