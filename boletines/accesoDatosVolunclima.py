@@ -74,6 +74,48 @@ GROUP BY X.id, X.codigo, X.nombre, X.div3, X.div2, X.div1"""
 	return dfStations
 
 
+def ObtenerEstacionesConDatosPrecipitacionMes2(conn, isoCty, yIni, mIni, dIni, yEnd, mEnd, dEnd):
+	strDatIni = str(yIni) + "/" + "{:02d}".format(mIni) + "/" + "{:02d}".format(dIni)
+	strDatEnd = str(yEnd) + "/" + "{:02d}".format(mEnd) + "/" + "{:02d}".format(dEnd)
+	sqlqry = """
+	SELECT X.id, X.codigo, X.nombre, sum(X.diario) as "diario", sum(X.acum) as "acum", sum(X.total) as "total", sum(X.dias) as "dias", X.div1 || '-' || X.div2 || '-' || X.div3 as "ubicacion" FROM (
+		SELECT div.nombre as "div3", (SELECT div2.nombre FROM bh.division div2 WHERE div2.id=div."idPadre") as "div2", (SELECT div1.nombre FROM bh.division div1 WHERE div1.id=(SELECT div4."idPadre" FROM bh.division div4 WHERE div4.id=div."idPadre")) as "div1", 
+		st.id, st.codigo, st.nombre, 
+		sum(CASE WHEN dd.valor=-888 THEN 0 WHEN dd.valor=-777 THEN 279.4 ELSE dd.valor END) as "diario", 
+		0 as "acum", 
+		sum(CASE WHEN dd.valor=-888 THEN 0 WHEN dd.valor=-777 THEN 279.4 ELSE dd.valor END) as "total", 
+		count(dd.id) as "dias"
+		FROM bh.estacion st
+		LEFT JOIN bh.observador obs ON obs."idEstacion" = st.id AND obs.state = 'A'
+		LEFT JOIN bh.precipitacion dd ON obs.id = dd."idObservador" AND dd.state = 'A' AND dd.fecha::date BETWEEN to_date(%s,'YYYY/MM/DD') AND to_date(%s,'YYYY/MM/DD')
+		JOIN bh.division div ON st."idUbicacion" = div.id AND div.state = 'A'
+		WHERE st.state = 'A' AND div."idPais" = (SELECT cty.id FROM bh.pais cty WHERE cty.siglas = %s AND cty.state='A') AND LEFT(st.codigo,2) != 'PP' 
+		GROUP BY st.id, st.codigo, div3, div2, div1
+		
+		UNION
+		
+		SELECT div.nombre as "div3", (SELECT div2.nombre FROM bh.division div2 WHERE div2.id=div."idPadre") as "div2", (SELECT div1.nombre FROM bh.division div1 WHERE div1.id=(SELECT div4."idPadre" FROM bh.division div4 WHERE div4.id=div."idPadre")) as "div1", 
+		st.id, st.codigo, st.nombre, 
+		0 as "diario", 
+		sum(CASE WHEN dd.valor=-888 THEN 0 WHEN dd.valor=-777 THEN 279.4 ELSE dd.valor END) as "acum", 
+		sum(CASE WHEN dd.valor=-888 THEN 0 WHEN dd.valor=-777 THEN 279.4 ELSE dd.valor END) as "total", 
+		sum(DATE_PART('day', LEAST(dd.fecha_fin, to_date(%s, 'YYYY/MM/DD')) - GREATEST(dd.fecha_inicio, to_date(%s, 'YYYY/MM/DD'))) + 1) as "dias"
+		FROM bh.estacion st
+		LEFT JOIN bh.observador obs ON obs."idEstacion" = st.id AND obs.state = 'A'
+		LEFT JOIN bh.prec_acum dd ON obs.id = dd."idObservador" AND dd.state = 'A' 
+		JOIN bh.division div ON st."idUbicacion" = div.id AND div.state = 'A'
+		WHERE st.state = 'A' AND div."idPais" = (SELECT cty.id FROM bh.pais cty WHERE cty.siglas = %s AND cty.state = 'A') AND (
+			(dd.fecha_inicio::date >= to_date(%s,'YYYY/MM/DD') AND dd.fecha_inicio::date <= to_date(%s,'YYYY/MM/DD')) OR
+			(dd.fecha_fin::date >= to_date(%s,'YYYY/MM/DD') AND dd.fecha_fin::date <= to_date(%s,'YYYY/MM/DD')) OR
+			(dd.fecha_inicio::date < to_date(%s,'YYYY/MM/DD') AND dd.fecha_fin::date > to_date(%s,'YYYY/MM/DD'))
+		) AND LEFT(st.codigo,2) != 'PP' 
+		GROUP BY st.id, st.codigo, div3, div2, div1
+	) as X
+	GROUP BY X.id, X.codigo, X.nombre, X.div3, X.div2, X.div1"""
+
+	dfStations = pd.read_sql(sqlqry, conn, params=(strDatIni, strDatEnd, isoCty, strDatEnd, strDatIni, isoCty, strDatIni, strDatEnd, strDatIni, strDatEnd, strDatIni, strDatEnd))
+	return dfStations
+
 def ObtenerReportesSequiaMes (conn,isoCty,yyyy,mm):#Aqui deberia usarse el mes en curso porque corresponderia a las condiciones del mes previo
 	strDatIni = str(yyyy)+"/"+"{:02d}".format(mm)+"/01"
 	strDatEnd = str(yyyy)+"/"+"{:02d}".format(mm)+"/15"#Los reportes de sequia solo se pueden enviar hasta el dia #10 
@@ -391,6 +433,10 @@ def dfReportesSequiaAMatriz(dfReps,isoCty,numRegPerPage):
 	idxAux=0
 	if isoCty=="VE":
 		intNumChars = 270
+	elif isoCty=="EC":
+		intNumChars = 207
+	elif isoCty=="CL":
+		intNumChars = 182
 	else: 
 		intNumChars = 170
 	for idxMat in range(numMats):
