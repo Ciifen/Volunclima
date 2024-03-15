@@ -71,18 +71,42 @@ MAIL_SERVER = "gmail"
 MAIL_PORT = 465
 
 
-#observadores externos
+#observadores externos (usuarios que no estan en el sistema de volunclima pero han solicitado boletines)
 observadoresExternosEcuador= [("Observadorexterno1","Observadorexterno1@gmail.com"), ("Observadorexterno2","Observadorexterno2@gmail.com")]
 observadoresExternosVenezuela= []
 observadoresExternosColombia= []
 observadoresExternosBolivia= []
 observadoresExternosChile= []
-#mails con excepciones
+#mails con excepciones los cuales pueden llegar a rebotar.
 excepciones= ["mail1@gmail.com","mail2@gmail.com"]
 
 #generarBoletin y enviarCorreo boolean para generar o enviar por correo los boletines. observadoresExternos es un argumento opcional
 #que debe ser una lista de tuplas [(nombre,correo),etc..], para poner personas a las que enviar boletin que no son voluntarios
 def GeneraryEnviarBoletinGeneralMensual (isoCty,yIni,mIni,generarBoletin, enviarCorreo):
+	"""
+	Genera y envía un boletín general mensual para un país dado.
+	
+	Args:
+		isoCty (str): Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
+		yIni (int): Año de la información contenida en el boletín.
+		mIni (int): Mes de la información contenida en el boletín.
+		generarBoletin (bool): Indica si se debe generar el boletín (True o False).
+		enviarCorreo (bool): Indica si se debe enviar el boletín por correo electrónico (True o False).
+	
+	Returns:
+		None
+	
+	Nota:
+		Esta función genera un boletín general mensual para un país específico. 
+		El boletín incluye información sobre precipitación, percepción de sequía y eventos extremos.
+		Si 'generarBoletin' es True, se generará el boletín. Si 'enviarCorreo' es True, 
+		se enviará el boletín por correo electrónico a los observadores correspondientes. Esto es para generar
+		primero y poder revisar posibles errores en los boletines.
+		observadoresExternos y excepciones son listas definidas previamente que se usan en esta funcion
+	
+	Raises:
+		None
+	"""
 	warnings.filterwarnings('ignore')
 	yEnd=yIni
 	mEnd=mIni
@@ -104,7 +128,7 @@ def GeneraryEnviarBoletinGeneralMensual (isoCty,yIni,mIni,generarBoletin, enviar
 		observadoresExternos=observadoresExternosBolivia
 	elif(isoCty=="CL"):
 		observadoresExternos=observadoresExternosChile
-
+	#generación de coreos
 	if(generarBoletin == True):
 		#GENERANDO MAPA DE PRECIPITACION MENSUAL
 		#Obteniendo estaciones con datos de precipitacion en el periodo consultado.
@@ -139,7 +163,7 @@ def GeneraryEnviarBoletinGeneralMensual (isoCty,yIni,mIni,generarBoletin, enviar
 		#Obteniendo reportes de eventos extremos. 
 		dfRepExtremos = acc.ObtenerReportesExtremosMes(conn,isoCty,yIni,mIni,dIni,yEnd,mEnd,dEnd)
 		ruta_archivo=bv.generarBoletinGeneral(isoCty,dfObs,dfStationsWPrec,dfStationsWDrought,dfRepExtremos,yIni,mIni)
-
+	#envío de correos
 	if(enviarCorreo == True):
 		print("Se empleará el boletín generado para enviar el correo.")
 		dfAllStations = acc.ObtenerEstacionesDePais(conn,isoCty,' ','A')#dfAllStations = acc.ObtenerEstacionesActivasPluvioDePais(conn,isoCty)
@@ -181,6 +205,28 @@ def GeneraryEnviarBoletinGeneralMensual (isoCty,yIni,mIni,generarBoletin, enviar
 #generarBoletin y enviarCorreo boolean para generar o enviar por correo los boletines. 
 #codigoEstacion es un argumento opcional para poder generar el boletin o enviar correos a una estación específica
 def GeneraryEnviarBoletinesEstacionesMensual (isoCty,yIni,mIni,generarBoletin, enviarCorreo, codigoEstacion=[]):
+	"""
+	Genera y envía boletines mensuales para las estaciones meteorológicas de un país.
+	
+	Args:
+		isoCty (str): Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
+		yIni (int): Año de la información contenida en el boletín.
+		mIni (int): Mes de la información contenida en el boletín.
+		generarBoletin (bool): Indica si se debe generar el boletín (True o False).
+		enviarCorreo (bool): Indica si se debe enviar el boletín por correo electrónico (True o False).
+		codigoEstacion (list, opcional): Lista de códigos de estación para generar boletines específicos (por defecto es una lista vacía).
+		excepciones es una lista previamente definida que se usa en esta función
+	Returns:
+		None
+	
+	Nota:
+		Esta función genera y envía boletines mensuales para las estaciones meteorológicas de un país específico.
+		Si 'generarBoletin' es True, se generará el boletín para todas las estaciones.
+		Si 'enviarCorreo' es True, se enviará el boletín por correo electrónico a los observadores correspondientes.
+		
+	Raises:
+		None
+	"""
 	warnings.filterwarnings('ignore')
 	yEnd=yIni
 	mEnd=mIni
@@ -318,6 +364,25 @@ def GeneraryEnviarBoletinesEstacionesMensual (isoCty,yIni,mIni,generarBoletin, e
 
 
 def GenerarMapaPrecipitacionDiaria (isoCty,datDate,fltTrhld=90):
+	"""
+	Genera un mapa de precipitación diaria para un país en una fecha específica.
+	
+	Args:
+		isoCty (str): Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
+		datDate (datetime.date): Fecha para la que se generará el mapa de precipitación diaria.
+		fltTrhld (float, opcional): Umbral de precipitación (por defecto es 90).
+	
+	Returns:
+		None
+	
+	Nota:
+		Esta función genera un mapa de precipitación diaria para un país en una fecha específica.
+		Utiliza los datos de precipitación diaria de la base de datos para generar el mapa y lo guarda en un archivo.
+		Además, genera una tabla de datos de precipitación diaria y la guarda en un archivo CSV.
+	
+	Raises:
+		None
+	"""
 	warnings.filterwarnings('ignore')
 	try:
 		conn = psycopg2.connect(database="precdb", user="****", password="*************", host="*********", port="****")
@@ -342,6 +407,30 @@ def GenerarMapaPrecipitacionDiaria (isoCty,datDate,fltTrhld=90):
 
 #función de enviar correos para una estacion
 def enviar_boletines_por_estacion(MAIL_RECIEVER, nombre_observador, codigo, estacion, archivo, mIni, yIni, isoCty, server ):
+	"""
+	Envía un boletín mensual por correo electrónico a un observador de una estación meteorológica.
+	
+	Args:
+		MAIL_RECIEVER (str): Dirección de correo electrónico del receptor.
+		nombre_observador (str): Nombre del observador.
+		codigo (str): Código de la estación.
+		estacion (str): Nombre de la estación.
+		archivo (str): Ruta del archivo del boletín.
+		mIni (int): Mes inicial del período.
+		yIni (int): Año inicial del período.
+		isoCty (str): Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
+		server (smtplib.SMTP): Objeto de conexión SMTP.
+	
+	Returns:
+		None
+	
+	Nota:
+		Esta función envía un boletín mensual por correo electrónico a un observador de una estación meteorológica.
+		El boletín incluye información climática del mes para la estación específica.
+	
+	Raises:
+	None
+	"""
 	mes = formato_mes(mIni).lower()
 	strCountry=acc.obtenerNombrePais(isoCty)
 	#mensaje del email
@@ -400,6 +489,30 @@ def enviar_boletines_por_estacion(MAIL_RECIEVER, nombre_observador, codigo, esta
 
 #funciona de enviar correos para todas las estaciones
 def enviar_boletines(MAIL_RECIEVER, nombre_observador, archivo, mIni, yIni, strCountry, dfObs, server):
+	"""
+	Envía un boletín mensual por correo electrónico a un observador de la red Volunclima.
+	
+	Args:
+		MAIL_RECIEVER (str): Dirección de correo electrónico del receptor.
+		nombre_observador (str): Nombre del observador.
+		archivo (str): Ruta del archivo del boletín.
+		mIni (int): Mes inicial del período.
+		yIni (int): Año inicial del período.
+		strCountry (str): Nombre del país.
+		dfObs (DataFrame): DataFrame de observaciones.
+		server (smtplib.SMTP): Objeto de conexión SMTP.
+	
+	Returns:
+		None
+	
+	Nota:
+		Esta función envía un boletín mensual por correo electrónico a un observador de la red Volunclima.
+		El boletín incluye información climática del mes para la red Volunclima en un país específico.
+		Adjunta un archivo de boletín en formato PDF al correo electrónico.
+
+	Raises:
+	None
+	"""
 	mes = formato_mes(mIni).lower()
 
 	#mensaje del email
@@ -478,6 +591,24 @@ def formato_mes(nombre_mes):
 
 #que debe ser una lista de tuplas [(nombre,correo),etc..], para poner personas a las que enviar boletin que no son voluntarios
 def envio (isoCty,observadoresExternos=[]):
+	"""
+	Envía boletines mensuales por correo electrónico a observadores de la red Volunclima y a observadores externos.
+
+	Args:
+		isoCty (str): Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
+		observadoresExternos (list, optional): Lista de tuplas con nombres y correos de observadores externos. 
+			Defaults to [].
+
+	Returns:
+		None
+
+	Nota:
+		Esta función envía boletines mensuales por correo electrónico a observadores de la red Volunclima y a observadores externos.
+		Utiliza la función `enviar_flyers` para enviar los boletines.
+
+	Raises:
+		None
+	"""
 	warnings.filterwarnings('ignore')
 
 	try:
@@ -515,6 +646,24 @@ def envio (isoCty,observadoresExternos=[]):
 	conn.close()
 
 def obtenerEstacionesSinReportarQuincena (isoCty,yIni,mIni):
+	"""
+	Obtiene las estaciones que no han reportado precipitaciones en la primera quincena del mes y envía un correo con el detalle.
+
+	Args:
+		isoCty (str): Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
+		yIni (int): Año inicial del período.
+		mIni (int): Mes inicial del período.
+
+	Returns:
+		None
+
+	Nota:
+		Esta función obtiene las estaciones que no han reportado precipitaciones en la primera quincena del mes especificado
+		y envía un correo electrónico con el detalle a la dirección "observadores@ciifen.org".
+
+	Raises:
+		None
+	"""
 	warnings.filterwarnings('ignore')
 	yEnd=yIni
 	mEnd=mIni
@@ -551,6 +700,24 @@ def obtenerEstacionesSinReportarQuincena (isoCty,yIni,mIni):
 	conn.close()
 
 def obtenerEstacionesSinReportarFinDeMes (isoCty,yIni,mIni):
+	"""
+	Obtiene las estaciones que no han reportado precipitaciones en la segunda quincena del mes y envía un correo con el detalle.
+
+	Args:
+		isoCty (str): Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
+		yIni (int): Año inicial del período.
+		mIni (int): Mes inicial del período.
+
+	Returns:
+		None
+
+	Nota:
+		Esta función obtiene las estaciones que no han reportado precipitaciones en la segunda quincena del mes especificado
+		y envía un correo electrónico con el detalle a la dirección "observadores@ciifen.org".
+
+	Raises:
+		None
+	"""
 	warnings.filterwarnings('ignore')
 	yEnd=yIni
 	mEnd=mIni
@@ -581,6 +748,25 @@ def obtenerEstacionesSinReportarFinDeMes (isoCty,yIni,mIni):
 	conn.close()
 
 def obtenerEstacionesSinReportarAnual (isoCty,yIni,mIni):
+	"""
+	Obtiene las estaciones que no han reportado precipitaciones en un año y envía un correo con el detalle.
+
+	Args:
+		isoCty (str): Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
+		yIni (int): Año inicial del período.
+		mIni (int): Mes inicial del período.
+
+	Returns:
+		None
+
+	Nota:
+		Esta función obtiene las estaciones que no han reportado precipitaciones en un año especificado
+		y envía un correo electrónico con el detalle a la dirección "observadores@ciifen.org", aunque ahora 
+		esta modificada para introducir periodos en vez de un año en la misma funcion y no enviar correo.
+
+	Raises:
+		None
+	"""
 	warnings.filterwarnings('ignore')
 	#yEnd=yIni
 	yIni=2023
@@ -618,6 +804,22 @@ def obtenerEstacionesSinReportarAnual (isoCty,yIni,mIni):
 
 
 def envio_correos_seguimiento(nombre_archivo):
+	"""
+	Envía correos electrónicos de seguimiento basados en los datos proporcionados en un archivo Excel.
+
+	Args:
+		nombre_archivo (str): Nombre del archivo Excel que contiene los datos de seguimiento.
+
+	Returns:
+		None
+
+	Nota:
+		Esta función carga los datos de un archivo Excel y envía correos electrónicos de seguimiento a los observadores
+		de la red Volunclima basados en esos datos. Utiliza la función `enviar_correo_analisis` para enviar los correos.
+
+	Raises:
+		None
+	"""
 	# Lista para almacenar las tuplas de datos
 	datos = []
 
@@ -648,6 +850,25 @@ def envio_correos_seguimiento(nombre_archivo):
 
 #funciona de enviar correos para todas las estaciones MAIL_RECIEVER, nombre_observador, archivo, mIni, yIni, strCountry, dfObs, server
 def enviar_correo_analisis(MAIL_RECIEVER, nombre,codigo, server):
+	"""
+	Envía correos electrónicos de análisis basados en los datos proporcionados.
+
+	Args:
+		MAIL_RECIEVER (str): Dirección de correo electrónico del destinatario.
+		nombre (str): Nombre del destinatario.
+		codigo (int): Código que determina el tipo de mensaje a enviar.
+		server (smtplib.SMTP): Objeto del servidor SMTP para enviar el correo.
+
+	Returns:
+		None
+
+	Nota:
+		Esta función envía correos electrónicos de análisis a los destinatarios basados en el código proporcionado.
+		El código determina el tipo de mensaje a enviar.
+
+	Raises:
+		Exception: Se produce si hay algún error al enviar el correo electrónico.
+	"""
 	#mensaje del email
 	msg=MIMEMultipart('mixed')
 	msg["Subject"]="Seguimiento de datos climáticos en las estaciones de la red Voluncima"
@@ -699,6 +920,23 @@ def enviar_correo_analisis(MAIL_RECIEVER, nombre,codigo, server):
 
 #funciona de enviar correos para todas las estaciones
 def enviar_flyers(MAIL_RECIEVER, nombre_observador,  server):
+	"""
+	Envía correos electrónicos de flyers para un evento de socialización de Volunclima.
+
+	Args:
+		MAIL_RECIEVER (str): Dirección de correo electrónico del destinatario.
+		nombre_observador (str): Nombre del destinatario.
+		server (smtplib.SMTP): Objeto del servidor SMTP para enviar el correo.
+
+	Returns:
+		None
+
+	Nota:
+		Esta función envía correos electrónicos de flyers para un evento de socialización de Volunclima a los destinatarios especificados.
+
+	Raises:
+		Exception: Se produce si hay algún error al enviar el correo electrónico.
+	"""
 	#mensaje del email
 	msg=MIMEMultipart('mixed')
 	msg["Subject"]=" Evento de socialización de Volunclima"
@@ -775,11 +1013,34 @@ def enviar_flyers(MAIL_RECIEVER, nombre_observador,  server):
 	try:
 		server.send_message(msg)
 		print("boletín enviado al observador "+ nombre_observador + "(" + MAIL_RECIEVER + ")" )
-	except:
+	except Exception as e:
 		print(f"An error occurred: {e}")
 
 #funciona de enviar correos para todas las estaciones MAIL_RECIEVER, nombre_observador, archivo, mIni, yIni, strCountry, dfObs, server
 def enviar_no_reportados(MAIL_RECIEVER,	strCountry, mIni, yIni, dias, texto,  server, anual=True):
+	"""
+	Envía correos electrónicos con reportes de estaciones no reportadas para un país y un período específicos.
+
+	Args:
+		MAIL_RECIEVER (str): Dirección de correo electrónico del destinatario.
+		strCountry (str): Nombre del país.
+		mIni (int): Mes inicial del período.
+		yIni (int): Año inicial del período.
+		dias (str): Cadena que indica los días (e.g., "de lluvia") para el mensaje del asunto.
+		texto (str): Texto adicional para incluir en el cuerpo del mensaje.
+		server (smtplib.SMTP): Objeto del servidor SMTP para enviar el correo.
+		anual (bool, optional): Indica si el reporte es anual o mensual. Por defecto, es True.
+
+	Returns:
+		None
+
+	Nota:
+		Esta función envía correos electrónicos con reportes de estaciones no reportadas para un país y un período específicos,
+		ya sea mensual o anualmente.
+
+	Raises:
+		Exception: Se produce si hay algún error al enviar el correo electrónico.
+	"""
 	#mensaje del email
 	mes = formato_mes(mIni).lower()
 	msg=MIMEMultipart('mixed')
@@ -828,7 +1089,7 @@ def enviar_no_reportados(MAIL_RECIEVER,	strCountry, mIni, yIni, dias, texto,  se
 	#enviar el email
 	try:
 		server.send_message(msg)
-	except:
+	except Exception as e:
 		print(f"An error occurred: {e}")
 
 
