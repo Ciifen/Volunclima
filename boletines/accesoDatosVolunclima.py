@@ -4,7 +4,13 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import math
 
-
+###################################################################################################################################################
+"""
+Las siguienes funciones son queries a la base de datos de Volunclima para obtener los datos que se indican en el mismo nombre de la función.
+Returns:
+	pandas.DataFrame: DataFrame que contiene la información sobre las estaciones meteorológicas y sus datos de precipitación.
+"""
+###################################################################################################################################################
 def ObtenerReportesPrecipitacionDiaria(conn,isoCty,datDate):
 	strDat = str(datDate.year)+"/"+"{:02d}".format(datDate.month)+"/"+"{:02d}".format(datDate.day)
 	sqlqry = """SELECT st.id, CASE WHEN dd.valor=-888 THEN 0 WHEN dd.valor=-777 THEN 279.4 ELSE dd.valor END as "valor", dd.comentario, st.codigo, st.nombre, (SELECT div1.nombre FROM bh.division div1 WHERE div1.id=(SELECT div4."idPadre" FROM bh.division div4 WHERE div4.id=div."idPadre")) as "div1",
@@ -75,6 +81,8 @@ GROUP BY X.id, X.codigo, X.nombre, X.div3, X.div2, X.div1"""
 
 
 def ObtenerEstacionesConDatosPrecipitacionMes2(conn, isoCty, yIni, mIni, dIni, yEnd, mEnd, dEnd):
+	#Putualizar que esta función se diferencia en la de arriba en como se cuantifican los dias reportados, y es usada para poder
+	#obtener los dias que han reportado las estaciones en un rango especifico.
 	strDatIni = str(yIni) + "/" + "{:02d}".format(mIni) + "/" + "{:02d}".format(dIni)
 	strDatEnd = str(yEnd) + "/" + "{:02d}".format(mEnd) + "/" + "{:02d}".format(dEnd)
 	sqlqry = """
@@ -255,7 +263,30 @@ def ObtenerPrecipitacionAcumuladaDeEstacion(conn, idSt, yIni=2010, mIni=1, dIni=
 	dfValAcums = dfValAcums.drop_duplicates(subset=['fecha_inicio','fecha_fin'])
 	return dfValAcums
 
+###################################################################################################################################################
+"""
+Fin de los queries
+"""
+###################################################################################################################################################
+
 def obtenerDiasFaltantesDatos(yIni,mIni,dIni,yEnd,mEnd,dEnd,dfVals,dfValAcums):
+	"""
+	Calcula el número de días faltantes entre dos fechas específicas, teniendo en cuenta los datos proporcionados en dos DataFrames.
+
+	Args:
+		yIni (int): Año inicial.
+		mIni (int): Mes inicial.
+		dIni (int): Día inicial.
+		yEnd (int): Año final.
+		mEnd (int): Mes final.
+		dEnd (int): Día final.
+		dfVals (pandas.DataFrame): DataFrame que contiene los datos diarios.
+		dfValAcums (pandas.DataFrame): DataFrame que contiene los datos acumulados.
+
+	Returns:
+		int: Número de días faltantes entre las fechas especificadas.
+
+	"""
 	datIni = dt.date(yIni,mIni,dIni)
 	datEnd = dt.date(yEnd,mEnd,dEnd)
 	delta = datEnd - datIni
@@ -268,6 +299,16 @@ def obtenerDiasFaltantesDatos(yIni,mIni,dIni,yEnd,mEnd,dEnd,dfVals,dfValAcums):
 
 #PLML: Función para obtener los límites de una serie de tiempo de precipitación
 def obtenerUmbrales(dfSeriePrec):
+	"""
+	Calcula los límites inferior y superior de una serie de tiempo de precipitación utilizando el método de los cuartiles y el rango intercuartílico.
+
+	Args:
+		dfSeriePrec (pandas.DataFrame): DataFrame que contiene la serie de tiempo de precipitación. Debe tener al menos una columna de datos de precipitación.
+
+	Returns:
+		list: Una lista que contiene el límite inferior (BI_Calculado) y el límite superior (BS_Calculado).
+
+	"""
 	Q1 = dfSeriePrec.iloc[:,[1]].quantile(.25)
 	Q3 = dfSeriePrec.iloc[:,[1]].quantile(0.75)
 	IQR = Q3 - Q1
@@ -275,9 +316,20 @@ def obtenerUmbrales(dfSeriePrec):
 	BS_Calculado = (Q3 + 1.5 * IQR)
 	return [BI_Calculado,BS_Calculado]
 
-#"determinar los valores atipicos y sacar una matriz sin los outliers"
 #PLML: ME PARECE QUE ESTOS VALORES ATIPICOS, AL MENOS LOS Q1 O Q3, DEBEN DE CONSIDERARSE TODOS LOS DATOS DE LA SERIE DE TIEMPO 
 def obtenerAtipicos(dfVals,BI_Calculado,BS_Calculado):
+	"""
+	determinar los valores atipicos y sacar una matriz sin los outliers
+	Args:
+		dfVals (pandas.DataFrame): DataFrame que contiene la serie de datos.
+		BI_Calculado (float): Límite inferior calculado para identificar valores atípicos.
+		BS_Calculado (float): Límite superior calculado para identificar valores atípicos.
+
+	Returns:
+		list: Una lista que contiene dos DataFrames. El primer DataFrame contiene los datos que no son atípicos (dentro de los límites), 
+		mientras que el segundo DataFrame contiene los datos atípicos (fuera de los límites).
+
+	"""
 	dfValsOutliers = dfVals.loc[((dfVals.valor < BI_Calculado.valor) | (dfVals.valor > BS_Calculado.valor))]
 	if len(dfValsOutliers.index)>0:
 		dfValsNoOutliers = dfVals.loc[((dfVals.valor >= BI_Calculado.valor) & (dfVals.valor <= BS_Calculado.valor))]
@@ -286,6 +338,18 @@ def obtenerAtipicos(dfVals,BI_Calculado,BS_Calculado):
 	return [dfValsNoOutliers,dfValsOutliers]
 
 def obtenerSDII(dfPrec, dfAcums, limite=0):
+	"""
+	Calcula el Índice de Intensidad de Precipitación Diaria Simple (SDII) dado un DataFrame de datos de precipitación diaria y otro de datos de precipitación acumulada.
+
+	Args:
+		dfPrec (pandas.DataFrame): DataFrame que contiene los datos de precipitación diaria.
+		dfAcums (pandas.DataFrame): DataFrame que contiene los datos de precipitación acumulada.
+		limite (float, opcional): Umbral opcional para considerar solo los valores de precipitación superiores a este límite. Por defecto, es 0.
+
+	Returns:
+		float: Valor del SDII calculado.
+
+	"""
 	sumPrecDiario=dfPrec.loc[dfPrec['valor']>= limite]['valor'].sum()
 	sumPrecAcum=dfAcums.loc[dfAcums['valor']>= limite]['valor'].sum()
 	totalPrec = sumPrecDiario + sumPrecAcum
@@ -295,12 +359,40 @@ def obtenerSDII(dfPrec, dfAcums, limite=0):
 	return sdii
 
 def obtenerPrecipitacionTotal(dfPrec, dfAcums, limite=0):
+	"""
+	Calcula los límites inferior y superior de una serie de tiempo de precipitación utilizando el método de los cuartiles y el rango intercuartílico.
+
+	Args:
+		dfSeriePrec (pandas.DataFrame): DataFrame que contiene la serie de tiempo de precipitación. Debe tener al menos una columna de datos de precipitación.
+
+	Returns:
+		list: Una lista que contiene el límite inferior (BI_Calculado) y el límite superior (BS_Calculado).
+
+	"""
 	sumPrecDiario=dfPrec.loc[dfPrec['valor']>= limite]['valor'].sum()
 	sumPrecAcum=dfAcums.loc[dfAcums['valor']>= limite]['valor'].sum()
 	totalPrec = sumPrecDiario + sumPrecAcum
 	return totalPrec
 
 def obtenerCDDCWD(dfPrec,yIni,mIni,dIni,yEnd,mEnd,dEnd,limit=1):
+	"""
+	Calcula la duración máxima de períodos consecutivos secos (CDD) y húmedos (CWD) en una serie de tiempo de precipitación.
+
+	Args:
+		dfPrec (pandas.DataFrame): DataFrame que contiene los datos de precipitación.
+		yIni (int): Año inicial.
+		mIni (int): Mes inicial.
+		dIni (int): Día inicial.
+		yEnd (int): Año final.
+		mEnd (int): Mes final.
+		dEnd (int): Día final.
+		limit (float, opcional): Umbral para considerar un día como húmedo. Por defecto es 1.
+
+	Returns:
+		list: Una lista que contiene dos valores: la duración máxima de períodos consecutivos secos (CDD) y 
+		la duración máxima de períodos consecutivos húmedos (CWD) en la serie de tiempo.
+
+	"""
 	#Recorro las fechas del mes-año
 	cdd=0
 	cwd=0
@@ -333,7 +425,22 @@ def obtenerCDDCWD(dfPrec,yIni,mIni,dIni,yEnd,mEnd,dEnd,limit=1):
 	return [cdd,cwd]
 
 def rellenarRegistros(dfPrec,yIni,mIni,dIni,yEnd,mEnd,dEnd):
-#Completando el set de datos, rellenando las fechas faltantes con -999
+	"""
+	Rellena los registros faltantes en un DataFrame de precipitación con el valor -999.
+
+	Args:
+		dfPrec (pandas.DataFrame): DataFrame que contiene los datos de precipitación.
+		yIni (int): Año inicial.
+		mIni (int): Mes inicial.
+		dIni (int): Día inicial.
+		yEnd (int): Año final.
+		mEnd (int): Mes final.
+		dEnd (int): Día final.
+
+	Returns:
+		pandas.DataFrame: DataFrame de precipitación con las fechas faltantes rellenadas con el valor -999.
+
+	"""
 	datIni = dt.date(yIni,mIni,dIni)
 	datEnd = dt.date(yEnd,mEnd,dEnd)
 	lstDates =[]
@@ -354,6 +461,26 @@ def rellenarRegistros(dfPrec,yIni,mIni,dIni,yEnd,mEnd,dEnd):
 
 #Si el día de la fecha inicial es diferente de 1 o de un multiplo del número de días a acumular 
 def obtenerAgregadosPorPeriodoDias(dfVals,dfAcums,intSize,yIni,mIni,dIni,yEnd,mEnd,dEnd):
+	"""
+	Calcula los agregados por un período de tiempo determinado en días.
+
+	Args:
+		dfVals (pandas.DataFrame): DataFrame que contiene los datos diarios.
+		dfAcums (pandas.DataFrame): DataFrame que contiene los datos acumulados.
+		intSize (int): Tamaño del período de tiempo en días para calcular los agregados.
+		yIni (int): Año inicial.
+		mIni (int): Mes inicial.
+		dIni (int): Día inicial.
+		yEnd (int): Año final.
+		mEnd (int): Mes final.
+		dEnd (int): Día final.
+
+	Returns:
+		pandas.DataFrame: DataFrame que contiene los agregados por el período de tiempo especificado.
+
+	Raises:
+		ValueError: Si el tamaño del período es menor o igual a 1.
+	"""
 	if intSize<=1:
 		print("Por favor escoja un lapso de acumulación mayor a 1")
 	dfDataD=dfVals.loc[dfVals["valor"]>=0]
@@ -419,6 +546,15 @@ def obtenerAgregadosPorPeriodoDias(dfVals,dfAcums,intSize,yIni,mIni,dIni,yEnd,mE
 	return dfAgg
 
 def dfAgregadosAMatriz(dfAgg):
+	"""
+	Convierte un DataFrame de agregados en una lista de listas para representar una tabla.
+
+	Args:
+		dfAgg (pandas.DataFrame): DataFrame que contiene los datos agregados.
+
+	Returns:
+		list: Lista de listas que representa los datos en formato de tabla.
+	"""
 	table_data=[["Periodo", "Valor [mm]", "Días faltantes"]]
 	for idx in range(len(dfAgg.index)):
 		strInterval = dfAgg.iloc[idx,0].strftime('%d/%m/%Y')+ " - "+dfAgg.iloc[idx,1].strftime('%d/%m/%Y')
@@ -428,6 +564,17 @@ def dfAgregadosAMatriz(dfAgg):
 	return table_data
 
 def dfReportesSequiaAMatriz(dfReps,isoCty,numRegPerPage):
+	"""
+	Convierte un DataFrame de reportes de sequía en una lista de matrices para mostrar los datos en páginas.
+
+	Args:
+		dfReps (pandas.DataFrame): DataFrame que contiene los reportes de sequía.
+		isoCty (str): Código ISO del país para determinar el número máximo de caracteres permitidos en los comentarios.
+		numRegPerPage (int): Número máximo de registros por página.
+
+	Returns:
+		list: Lista de matrices que representa los datos de los reportes de sequía en páginas.
+	"""
 	arrMats = []
 	numMats = math.ceil(len(dfReps.index)/numRegPerPage)#cuantos juegos de matrices 
 	idxAux=0
@@ -460,6 +607,16 @@ def dfReportesSequiaAMatriz(dfReps,isoCty,numRegPerPage):
 
 
 def dfExtremosAMatriz(dfReps,numRegPerPage):
+	"""
+	Convierte un DataFrame de reportes de eventos extremos en una lista de matrices para mostrar los datos en páginas.
+
+	Args:
+		dfReps (pandas.DataFrame): DataFrame que contiene los reportes de eventos extremos.
+		numRegPerPage (int): Número máximo de registros por página.
+
+	Returns:
+		list: Lista de matrices que representa los datos de los reportes de eventos extremos en páginas.
+	"""
 	arrMats = []
 	numMats = math.ceil(len(dfReps.index)/numRegPerPage)#cuantos juegos de matrices 
 	idxAux=0
@@ -517,6 +674,17 @@ def dfExtremosAMatriz(dfReps,numRegPerPage):
 
 #Devuelve una matriz de matrices. Cada matriz tiene 9 registros mas el encabezado. Eso porque es la altura disponible en los boletines (media pagina) 
 def dfPrecEstacionesMensualAMatriz(dfPrec,numRegPerPage,lstTblRegs):
+	"""
+	Convierte un DataFrame de datos mensuales de precipitación por estación en una lista de matrices para mostrar los datos en páginas.
+
+	Args:
+		dfPrec (pandas.DataFrame): DataFrame que contiene los datos mensuales de precipitación por estación.
+		numRegPerPage (int): Número máximo de registros por página.
+		lstTblRegs (list): Lista que contiene el número de registros por tabla en cada página.
+
+	Returns:
+		list: Lista de matrices que representa los datos de precipitación mensual por estación en páginas.
+	"""
 	arrMats = []
 	numMats = math.ceil(len(dfPrec.index)/numRegPerPage)#cuantos juegos de matrices 
 	idxAux=0
@@ -538,6 +706,16 @@ def dfPrecEstacionesMensualAMatriz(dfPrec,numRegPerPage,lstTblRegs):
 
 
 def dfPrecDiarioAMatriz(dfDD, dfObs):
+	"""
+	Convierte un DataFrame de datos diarios de precipitación en una lista de listas para su presentación tabular.
+
+	Args:
+		dfDD (pandas.DataFrame): DataFrame que contiene los datos diarios de precipitación.
+		dfObs (pandas.DataFrame): DataFrame que contiene la información del observador.
+
+	Returns:
+		list: Lista de listas que representa los datos diarios de precipitación para mostrar en una tabla.
+	"""
 	if len(dfObs.index)>1:
 		table_data=[["Observador", "Fecha", "Valor [mm]", "Comentarios"]]
 		for idx in range(len(dfDD.index)):
@@ -573,6 +751,16 @@ def dfPrecDiarioAMatriz(dfDD, dfObs):
 	return table_data
 
 def dfPrecAcumAMatriz(dfPrec, dfObs):
+	"""
+	Convierte un DataFrame de datos acumulados de precipitación en una lista de listas para su presentación tabular.
+
+	Args:
+		dfPrec (pandas.DataFrame): DataFrame que contiene los datos acumulados de precipitación.
+		dfObs (pandas.DataFrame): DataFrame que contiene la información del observador.
+
+	Returns:
+		list: Lista de listas que representa los datos acumulados de precipitación para mostrar en una tabla.
+	"""
 	if len(dfObs.index)>1:
 		table_data=[["Observador", "Periodo", "Valor [mm]", "Comentarios"]]
 		for idx in range(len(dfPrec.index)):
@@ -648,6 +836,19 @@ def obtenerNombrePais(strIso2):
 	}.get(strIso2, '%ERR%') 
 
 def dfAgradecimientosAMatriz(dfObs,numRegPerPage,lstTblRegs):
+	"""
+	Convierte un DataFrame de observadores en una lista de listas para su presentación tabular.
+
+	Esta función se utiliza para generar los agradecimientos en un boletín climático.
+
+	Args:
+		dfObs (pandas.DataFrame): DataFrame que contiene la información de los observadores.
+		numRegPerPage (int): Número máximo de registros por página.
+		lstTblRegs (list): Lista que contiene el número de registros por tabla.
+
+	Returns:
+		list: Lista de listas que representa los agradecimientos para mostrar en una tabla.
+	"""
 	arrMats = []
 	numMats = math.ceil(len(dfObs.index)/numRegPerPage)#cuantos juegos de matrices 
 	idxAux=0
