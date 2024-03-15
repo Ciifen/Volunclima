@@ -569,7 +569,7 @@ def dfReportesSequiaAMatriz(dfReps,isoCty,numRegPerPage):
 
 	Args:
 		dfReps (pandas.DataFrame): DataFrame que contiene los reportes de sequía.
-		isoCty (str): Código ISO del país para determinar el número máximo de caracteres permitidos en los comentarios.
+		isoCty (str): Código ISO del país para determinar el número máximo de caracteres permitidos en los comentarios. Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
 		numRegPerPage (int): Número máximo de registros por página.
 
 	Returns:
