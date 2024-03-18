@@ -12,6 +12,28 @@ import matplotlib.gridspec as gridspec
 
 
 def graficarPercepcionSequiaMensual(yyyy,mm,isoCty, dfStations, dfValues):
+	"""
+	Esta función genera un gráfico de percepción de sequía para un país en un mes y año específicos.
+	Se proporciona información detallada sobre la ubicación geográfica de las estaciones meteorológicas
+	y los valores de percepción de sequía correspondientes.
+
+	Esta función grafica de forma especial a Colombia y Ecuador.
+
+	Args:
+		yyyy (int): El año para el cual se desea generar el gráfico de percepción de sequía.
+		mm (int): El número de mes (1-12) para el cual se desea generar el gráfico de percepción de sequía.
+		isoCty (str): El código ISO del país para el cual se generará el gráfico.
+						Los códigos de los países son: EC (Ecuador), VE (Venezuela),
+						CO (Colombia), CH (Chile), BO (Bolivia).
+		dfStations (DataFrame): Un DataFrame que contiene la información de las estaciones meteorológicas.
+		dfValues (DataFrame): Un DataFrame que contiene los valores de percepción de sequía para cada estación.
+
+	Returns:
+		None
+
+	Raises:
+		None
+	"""
 	#Quitar estaciones con datos del df de todas las estaciones para que se vea mejor el mapa (no superponer los marcadores)
 	cond = dfStations['id'].isin(dfValues['id'])
 	dfStations.drop(dfStations[cond].index, inplace = True)	
@@ -80,7 +102,7 @@ def graficarPercepcionSequiaMensual(yyyy,mm,isoCty, dfStations, dfValues):
 		""" map.drawparallels(np.arange(-23, -9, 2),labels=[True,False,False,False])
 		map.drawmeridians(np.arange(-70,-56, 2),labels=[False,False,False,True]) """
 	elif isoCty == 'CO':
-		# Dividir el área de Colombia en tres secciones
+		# Dividir el área de Colombia en tres secciones (debido a que los puntos estan concentrados en 3 diferentes secciones y el mapa es muy grande para apreciar los puntos sin hacer zoom)
 		sections = 3
 		lon_leftup_list = [-74.1,-76,-78]
 		lon_rightdown_list = [-72.8,-74.5,-75.7]
@@ -131,7 +153,7 @@ def graficarPercepcionSequiaMensual(yyyy,mm,isoCty, dfStations, dfValues):
 			valX, valY = map(lsLngVals, lsLatVals)
 			map.scatter(valX, valY, c=lsTotVals, marker='^', s=20, cmap=cCmap, norm=cNorm, zorder=10)
 	elif isoCty == 'EC':
-		# Dividir el área de Colombia en tres secciones
+		# Se divide el gráfico en 2 subplots, una para ecuador y otra para galápagos
 		sections = 2
 		lon_leftup_list = [-81,-92]
 		lon_rightdown_list = [-76.25,-89]
@@ -231,6 +253,26 @@ def graficarPercepcionSequiaMensual(yyyy,mm,isoCty, dfStations, dfValues):
 
 
 def graficarPrecipitacionMensual(yyyy,mm,isoCty, dfStations, dfValues):
+	"""
+	La función grafica la precipitación mensual para el país especificado en el mes dado,
+	utilizando la biblioteca Basemap de Matplotlib. Se crean diferentes marcadores y
+	colores para representar la calidad de los datos de precipitación (excelente, media y mínima).
+	La figura resultante se guarda como un archivo PNG y se muestra en pantalla.
+
+	Esta función grafica de forma especial a Colombia y Ecuador.
+
+	Parámetros:
+	- yyyy (int): Año para el cual se desea graficar la precipitación.
+	- mm (int): Mes para el cual se desea graficar la precipitación.
+	- isoCty (str): El código ISO del país para el cual se generará el gráfico.
+						Los códigos de los países son: EC (Ecuador), VE (Venezuela),
+						CO (Colombia), CH (Chile), BO (Bolivia).
+	- dfStations (DataFrame): DataFrame que contiene información de las estaciones meteorológicas.
+	- dfValues (DataFrame): DataFrame que contiene los valores de precipitación para cada estación.
+
+	Devuelve:
+	- None
+	"""
 	#Le pongo coordenadas a las esaciones con datos
 	numMonthDays = pd.DataFrame()
 	indexMinMaxQC = pd.DataFrame()
@@ -324,7 +366,7 @@ def graficarPrecipitacionMensual(yyyy,mm,isoCty, dfStations, dfValues):
 		""" map.drawparallels(np.arange(-23, -9, 2),labels=[True,False,False,False])
 		map.drawmeridians(np.arange(-70,-56, 2),labels=[False,False,False,True]) """
 	elif isoCty == 'CO':
-		# Dividir el área de Colombia en tres secciones
+		# Dividir el área de Colombia en tres secciones (debido a que los puntos estan concentrados en 3 diferentes secciones y el mapa es muy grande para apreciar los puntos sin hacer zoom)
 		sections = 3
 		lon_leftup_list = [-74.1,-76,-78]
 		lon_rightdown_list = [-72.8,-74.5,-75.7]
@@ -366,14 +408,17 @@ def graficarPrecipitacionMensual(yyyy,mm,isoCty, dfStations, dfValues):
 			map.drawstates(linewidth=0.5)
 			map.drawcountries(linewidth=1.2)
 			map.drawmapboundary(fill_color='#cce6ff')
-			map.fillcontinents(color='#ffffff',lake_color='#cce6ff')
+			map.fillcontinents(color='#ffffff',lake_color='#cce6ff') 
 			lsLngNoData = dfStations.long.to_list()
 			lsLatNoData = dfStations.lat.to_list()
 			noDataX, noDataY = map(lsLngNoData, lsLatNoData)
 			map.scatter(noDataX, noDataY, marker='.',color='#cccccc', s=10, zorder=3)#https://basemaptutorial.readthedocs.io/en/latest/plotting_data.html
 			lstIntervals = [1,50,100,150,200,250,300,350,400,450,500]
+			#lstColors = ['#78483B', '#925B4C', '#A86B57', '#B69286','#C69F92',   '#71DC46','#6CD044','#64C040','#5EB23C','#57A438']#https://colorbrewer2.org/
 			lstColors = ['#8fbef9','#1d7df2','#124a6d','#1b6a60','#569975','#8ec385','#c5be7a','#efb96e','#da8559','#cb5b4b']#https://colorbrewer2.org/
+			#cCmap = (mpl.colors.ListedColormap(lstColors).with_extremes(under='#502C22', over='#4C8F31'))		#https://matplotlib.org/stable/tutorials/colors/colorbar_only.html
 			cCmap = (mpl.colors.ListedColormap(lstColors).with_extremes(under='#000000', over='#9b0121'))		#https://matplotlib.org/stable/tutorials/colors/colorbar_only.html
+			cNorm = mpl.colors.BoundaryNorm(lstIntervals, cCmap.N)
 			cNorm = mpl.colors.BoundaryNorm(lstIntervals, cCmap.N)
 			if len(dfValuesGoodQC.index)>0:#Good QC ########################
 				lsLngGoodQC = dfValuesGoodQC.long.to_list()
@@ -396,7 +441,7 @@ def graficarPrecipitacionMensual(yyyy,mm,isoCty, dfStations, dfValues):
 				MinQCX, MinQCY = map(lsLngMinQC, lsLatMinQC)
 				map.scatter(MinQCX, MinQCY, c=lsPrecMinQC, marker='.', s=30, cmap=cCmap, norm=cNorm, zorder=8)
 	elif isoCty == 'EC':
-		# Dividir el área de Colombia en tres secciones
+		# Se divide el gráfico en 2 subplots, una para ecuador y otra para galápagos
 		sections = 2
 		lon_leftup_list = [-81,-92]
 		lon_rightdown_list = [-76.25,-89]
@@ -440,7 +485,9 @@ def graficarPrecipitacionMensual(yyyy,mm,isoCty, dfStations, dfValues):
 			noDataX, noDataY = map(lsLngNoData, lsLatNoData)
 			map.scatter(noDataX, noDataY, marker='.',color='#cccccc', s=10, zorder=3)#https://basemaptutorial.readthedocs.io/en/latest/plotting_data.html
 			lstIntervals = [1,50,100,150,200,250,300,350,400,450,500]
+			#lstColors = ['#78483B', '#925B4C', '#A86B57', '#B69286','#C69F92',   '#71DC46','#6CD044','#64C040','#5EB23C','#57A438']#https://colorbrewer2.org/
 			lstColors = ['#8fbef9','#1d7df2','#124a6d','#1b6a60','#569975','#8ec385','#c5be7a','#efb96e','#da8559','#cb5b4b']#https://colorbrewer2.org/
+			#cCmap = (mpl.colors.ListedColormap(lstColors).with_extremes(under='#502C22', over='#4C8F31'))		#https://matplotlib.org/stable/tutorials/colors/colorbar_only.html
 			cCmap = (mpl.colors.ListedColormap(lstColors).with_extremes(under='#000000', over='#9b0121'))		#https://matplotlib.org/stable/tutorials/colors/colorbar_only.html
 			cNorm = mpl.colors.BoundaryNorm(lstIntervals, cCmap.N)
 			if len(dfValuesGoodQC.index)>0:#Good QC ########################
@@ -491,7 +538,9 @@ def graficarPrecipitacionMensual(yyyy,mm,isoCty, dfStations, dfValues):
 		noDataX, noDataY = map(lsLngNoData, lsLatNoData)
 		map.scatter(noDataX, noDataY, marker='.',color='#cccccc', s=10, zorder=3)#https://basemaptutorial.readthedocs.io/en/latest/plotting_data.html
 		lstIntervals = [1,50,100,150,200,250,300,350,400,450,500]
+		#lstColors = ['#78483B', '#925B4C', '#A86B57', '#B69286','#C69F92',   '#71DC46','#6CD044','#64C040','#5EB23C','#57A438']#https://colorbrewer2.org/
 		lstColors = ['#8fbef9','#1d7df2','#124a6d','#1b6a60','#569975','#8ec385','#c5be7a','#efb96e','#da8559','#cb5b4b']#https://colorbrewer2.org/
+		#cCmap = (mpl.colors.ListedColormap(lstColors).with_extremes(under='#502C22', over='#4C8F31'))		#https://matplotlib.org/stable/tutorials/colors/colorbar_only.html
 		cCmap = (mpl.colors.ListedColormap(lstColors).with_extremes(under='#000000', over='#9b0121'))		#https://matplotlib.org/stable/tutorials/colors/colorbar_only.html
 		cNorm = mpl.colors.BoundaryNorm(lstIntervals, cCmap.N)
 
@@ -532,6 +581,7 @@ def graficarPrecipitacionMensual(yyyy,mm,isoCty, dfStations, dfValues):
 		'Sin datos'
 		]
 
+	#custom_lines = [mpl.lines.Line2D([0], [0], color='#4C8F31', lw=4),
 	custom_lines = [mpl.lines.Line2D([0], [0], color='#9b0121', lw=4),
 			mpl.lines.Line2D([0], [0], color=lstColors[9], lw=4),
 			mpl.lines.Line2D([0], [0], color=lstColors[8], lw=4),
@@ -543,6 +593,7 @@ def graficarPrecipitacionMensual(yyyy,mm,isoCty, dfStations, dfValues):
 			mpl.lines.Line2D([0], [0], color=lstColors[2], lw=4),
 			mpl.lines.Line2D([0], [0], color=lstColors[1], lw=4),
 			mpl.lines.Line2D([0], [0], color=lstColors[0], lw=4),
+			#mpl.lines.Line2D([0], [0], color='#502C22', lw=4),
 			mpl.lines.Line2D([0], [0], color='#000000', lw=4),
 			mpl.lines.Line2D([0], [0], color='#cccccc', lw=4)]
 
@@ -554,6 +605,27 @@ def graficarPrecipitacionMensual(yyyy,mm,isoCty, dfStations, dfValues):
 	plt.show()
 
 def graficarPrecipitacionDiariaRed(datDate,isoCty,dfStations,dfValues,fltTrhld):
+	"""
+	Esta función genera mapas que muestran informes de precipitación diaria para varias regiones,
+	incluyendo Ecuador, Chile, Venezuela, Bolivia y Colombia. Los mapas visualizan los datos de
+	precipitación para la fecha especificada, mostrando la ubicación de las estaciones, los valores
+	extremos de precipitación y una leyenda codificada por colores que representa diferentes niveles
+	de precipitación.
+
+	La configuración del mapa, la representación de datos, la creación de la leyenda y el guardado/
+	visualización del mapa se manejan dentro de la función. Esta función depende de bibliotecas como
+	matplotlib, numpy y Basemap para la representación del mapa y la visualización de datos.
+	
+	Parámetros:
+	- datDate (datetime): Fecha para la cual se están trazando los datos de precipitación.
+	- isoCty (str): Código ISO del país. Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
+	- dfStations (DataFrame): DataFrame que contiene información sobre las estaciones meteorológicas.
+	- dfValues (DataFrame): DataFrame que contiene los valores de precipitación para cada estación.
+	- fltTrhld (float): Valor umbral para la precipitación extrema.
+
+	Retorna:
+	None
+	"""
 	strDat = "{:02d}".format(datDate.day)+"/"+acc.obtenerAcronimoMes(int(datDate.month))+"/"+str(datDate.year)
 	if len(dfValues.index)>0:
 		# dfValues['lat'] = dfValues.apply (lambda row: float(dfStations.loc[dfStations['id']==row.id]['lat'].values[0]), axis=1)
