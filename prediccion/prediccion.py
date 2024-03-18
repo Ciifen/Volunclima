@@ -11,7 +11,7 @@ import re
 import calendar
 from matplotlib.colors import BoundaryNorm
 import os
-# Paleta de colores en formato RGB
+# Paletas de colores en formato RGB 
 paleta_precipitacion_anomalia = np.array([
     [84, 65, 60],
     [113, 70, 59],
@@ -27,7 +27,7 @@ paleta_precipitacion_anomalia = np.array([
     [43, 119, 59],
     [13, 91, 30]
 ]) / 255.0
-# Define la paleta de colores
+
 paletaTemperatura = np.array([
     [0, 4, 100],
     [9, 27, 206],
@@ -63,7 +63,21 @@ paleta_precipitacion = np.array([
     [241, 186, 111],
     [201, 88, 74]
 ]) / 255.0
-
+""" paleta_precipitacion = np.array([
+    [84, 65, 60],
+    [113, 70, 59],
+    [145, 90, 80],
+    [160, 130, 120],
+    [200, 182, 177],
+    [234, 227, 226],
+    [255, 255, 255],
+    [211, 250, 215],
+    [162, 250, 177],
+    [110, 225, 130],
+    [29, 176, 60],
+    [43, 119, 59],
+    [13, 91, 30]
+]) / 255.0 """
 month_name_dict = {
     1: 'Enero',
     2: 'Febrero',
@@ -82,6 +96,39 @@ month_name_dict = {
     
 def filled_contour(x, y, z, levels, col, xlim, ylim, zlim, antialiased=True, key_axes=None, color_palette=None, plot_axes=None,
                    ic_label=None, key_title=None, nombre_png='prediccion.png', valor_minimo=None, valor_maximo=None, medida="",pais="sudam"):
+    """
+    Genera un gráfico de contorno relleno con datos geoespaciales.
+
+    Esta función utiliza Matplotlib para generar un gráfico de contorno relleno con datos geoespaciales proporcionados en forma de arrays 2D x, y y z.
+    Los contornos se generan a partir de los niveles especificados y se colorean según la paleta de colores proporcionada.
+
+    Args:
+        x (array_like): Coordenadas x de los puntos de los datos.
+        y (array_like): Coordenadas y de los puntos de los datos.
+        z (array_like): Valores z asociados a las coordenadas x e y.
+        levels (array_like): Niveles de contorno para dibujar líneas y colores.
+        col (array_like): Paleta de colores a utilizar para el relleno de los contornos.
+        xlim (array_like): Límites del eje x del gráfico.
+        ylim (array_like): Límites del eje y del gráfico.
+        zlim (array_like): Límites de los valores z que se mostrarán en el gráfico.
+        antialiased (bool, optional): Controla si las líneas son antialiasadas. Por defecto, True.
+        key_axes (array_like, optional): Posiciones de las marcas de los ejes en la barra de colores.
+        color_palette (array_like, optional): Paleta de colores para la interpolación.
+        plot_axes (function, optional): Función para personalizar los ejes del gráfico.
+        ic_label (str, optional): Etiqueta para el índice de correlación.
+        key_title (str, optional): Título de la barra de colores.
+        nombre_png (str, optional): Nombre del archivo PNG donde se guardará el gráfico.
+        valor_minimo (float, optional): Valor mínimo para los datos z.
+        valor_maximo (float, optional): Valor máximo para los datos z.
+        medida (str, optional): Etiqueta de la medida mostrada en la barra de colores.
+        pais (str, optional): País o región para personalizar el gráfico. Por defecto, 'sudam'.
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
     fig, ax = plt.subplots( subplot_kw={'projection': ccrs.PlateCarree()})
     ax.set_aspect('auto')  # Ajustar la relación de aspecto
     
@@ -193,12 +240,18 @@ def filled_contour(x, y, z, levels, col, xlim, ylim, zlim, antialiased=True, key
         font_properties = {'family': 'sans-serif', 'style': 'italic', 'size': 8}
         plt.text(-0.6, -0.14, '*Ensemble de 51 miembros', transform=ax.transAxes, **font_properties, ha='left', va='bottom')
     else:
+        if(pais=="GA"):
+            font_properties = {'family': 'sans-serif', 'style': 'italic', 'weight': 'bold', 'size': 11}
         plt.text(0, -0.10, 'ECMWF ENSEMBLE* MEAN', transform=ax.transAxes, **font_properties, ha='left', va='bottom')
         plt.text(1, -0.10, 'Elaborado por: CIIFEN', transform=ax.transAxes, **font_properties, ha='right', va='bottom')
-        if(pais=="EC" or pais=="VE" or pais=="GA"):
-            font_properties = {'family': 'sans-serif', 'style': 'italic', 'size': 12}
+        if(pais=="EC" or pais=="VE" ):
+            letrasize=12
+        elif(pais=="GA"):
+            letrasize=10
         else:
-            font_properties = {'family': 'sans-serif', 'style': 'italic', 'size': 8}
+            letrasize=8
+        
+        font_properties = {'family': 'sans-serif', 'style': 'italic', 'size': letrasize}
         
         plt.text(0, -0.14, '*Ensemble de 51 miembros', transform=ax.transAxes, **font_properties, ha='left', va='bottom')
 
@@ -212,6 +265,31 @@ def filled_contour(x, y, z, levels, col, xlim, ylim, zlim, antialiased=True, key
 #division valor es cada cuantas unidades se divide
 def generarPrediccion(start_date,end_date,nombre_png, parameter, valor_minimo, valor_maximo, ajuste_valor_maximo, division_color, division_valor, titulo, 
     paleta, ic_label, medida,pais,coord):
+    """
+    Genera un pronóstico climático mensual de temperatura, precipitación o sus respectivas anomalias y crea un gráfico de contorno relleno para visualizar 
+    los datos en una región específica con la función filled_contour()
+
+    Args:
+        start_date (str): Fecha de inicio del pronóstico en formato 'YYYY-MM-DD'.
+        end_date (str): Fecha de fin del pronóstico en formato 'YYYY-MM-DD'.
+        nombre_png (str): Nombre del archivo PNG para guardar la figura.
+        parameter (xarray.DataArray): Conjunto de datos climáticos.
+        valor_minimo (float): Valor mínimo para los datos.
+        valor_maximo (float): Valor máximo para los datos.
+        ajuste_valor_maximo (float): Ajuste adicional al valor máximo.
+        division_color (float): Intervalo para la paleta de colores.
+        division_valor (int): Intervalo para etiquetas en el colorbar.
+        titulo (str): Título para el gráfico.
+        paleta (array_like): Paleta de colores para la visualización.
+        ic_label (str): Etiqueta para identificar el índice climático.
+        medida (str): Unidad de medida de los datos.
+        pais (str): País o región para personalizar el gráfico.
+        coord (list): Coordenadas de la región de interés en el formato [lon_min, lon_max, lat_min, lat_max].
+
+    Returns:
+        None
+    """
+
     # Selecciona la fecha de inicio y fin para el pronóstico mensual
     #start_date = '2023-11-01'
     #end_date = '2024-01-01'
@@ -251,6 +329,17 @@ def generarPrediccion(start_date,end_date,nombre_png, parameter, valor_minimo, v
     ic_label=ic_label, key_title=keyt, nombre_png=nombre_png, valor_minimo=valor_minimo, valor_maximo=valor_maximo, medida=medida, pais=pais)
 
 def generarPrediccionMensualTemperatura(ruta_dataset,pais="sudam",coord=[-120, -30, -60, 30]):
+    """
+    Genera un pronóstico mensual de temperatura superficial del aire y crea un gráfico de contorno relleno para visualizar los datos en una región específica.
+
+    Args:
+        ruta_dataset (str): Ruta del conjunto de datos netCDF que contiene la temperatura superficial del aire.
+        pais (str, optional): País o región para personalizar el gráfico. Por defecto es "sudam".
+        coord (list, optional): Coordenadas de la región de interés en el formato [lon_min, lon_max, lat_min, lat_max]. Por defecto es [-120, -30, -60, 30].
+
+    Returns:
+        None
+    """
     # Format the dates as strings
     fecha_inicial = getFechaInicial()
     # Abre el conjunto de datos netcdf
@@ -270,6 +359,17 @@ def generarPrediccionMensualTemperatura(ruta_dataset,pais="sudam",coord=[-120, -
     dataset.close()
 
 def generarPrediccionMensualPrecipitacion(ruta_dataset,pais="sudam",coord=[-120, -30, -60, 30]):
+    """
+    Genera un pronóstico mensual de precipitación acumulada y crea un gráfico de contorno relleno para visualizar los datos en una región específica.
+
+    Args:
+        ruta_dataset (str): Ruta del conjunto de datos netCDF que contiene la precipitación.
+        pais (str, optional): País o región para personalizar el gráfico. Por defecto es "sudam".
+        coord (list, optional): Coordenadas de la región de interés en el formato [lon_min, lon_max, lat_min, lat_max]. Por defecto es [-120, -30, -60, 30].
+
+    Returns:
+        None
+    """
     # Format the dates as strings
     fecha_inicial = getFechaInicial()
     # Abre el conjunto de datos netcdf
@@ -290,6 +390,17 @@ def generarPrediccionMensualPrecipitacion(ruta_dataset,pais="sudam",coord=[-120,
     dataset.close()
 
 def generarPrediccionEstacionalTemperatura(ruta_dataset,pais="sudam",coord=[-120, -30, -60, 30]):
+    """
+    Genera un pronóstico estacional de temperatura superficial del aire y crea un gráfico de contorno relleno para visualizar los datos en una región específica.
+
+    Args:
+        ruta_dataset (str): Ruta del conjunto de datos netCDF que contiene la temperatura superficial del aire.
+        pais (str, optional): País o región para personalizar el gráfico. Por defecto es "sudam".
+        coord (list, optional): Coordenadas de la región de interés en el formato [lon_min, lon_max, lat_min, lat_max]. Por defecto es [-120, -30, -60, 30].
+
+    Returns:
+        None
+    """
     fecha_inicial = getFechaInicial()
     fecha_final = getFechaFinal()
     # Abre el conjunto de datos netcdf
@@ -309,6 +420,17 @@ def generarPrediccionEstacionalTemperatura(ruta_dataset,pais="sudam",coord=[-120
     dataset.close()
 
 def generarPrediccionEstacionalPrecipitacion(ruta_dataset,pais="sudam",coord=[-120, -30, -60, 30]):
+    """
+    Genera un pronóstico estacional de precipitación acumulada y crea un gráfico de contorno relleno para visualizar los datos en una región específica.
+
+    Args:
+        ruta_dataset (str): Ruta del conjunto de datos netCDF que contiene la variable de precipitación.
+        pais (str, optional): País o región para personalizar el gráfico. Por defecto es "sudam".
+        coord (list, optional): Coordenadas de la región de interés en el formato [lon_min, lon_max, lat_min, lat_max]. Por defecto es [-120, -30, -60, 30].
+
+    Returns:
+        None
+    """
     fecha_inicial = getFechaInicial()
     fecha_final = getFechaFinal()
     # Abre el conjunto de datos netcdf
@@ -332,6 +454,17 @@ def generarPrediccionEstacionalPrecipitacion(ruta_dataset,pais="sudam",coord=[-1
 
 
 def generarPrediccionAnomaliaMensualTemperatura(ruta_dataset,pais="sudam",coord=[-120, -30, -60, 30]):
+    """
+    Genera un pronóstico mensual de la anomalía de temperatura superficial del aire y crea un gráfico de contorno relleno para visualizar los datos en una región específica.
+
+    Args:
+        ruta_dataset (str): Ruta del conjunto de datos netCDF que contiene la variable de temperatura superficial del aire.
+        pais (str, optional): País o región para personalizar el gráfico. Por defecto es "sudam".
+        coord (list, optional): Coordenadas de la región de interés en el formato [lon_min, lon_max, lat_min, lat_max]. Por defecto es [-120, -30, -60, 30].
+
+    Returns:
+        None
+    """
     # Format the dates as strings
     fecha_inicial = getFechaInicial()
     # Abre el conjunto de datos netcdf
@@ -351,6 +484,17 @@ def generarPrediccionAnomaliaMensualTemperatura(ruta_dataset,pais="sudam",coord=
     dataset.close()
 
 def generarPrediccionAnomaliaMensualPrecipitacion(ruta_dataset,pais="sudam",coord=[-120, -30, -60, 30]):
+    """
+    Genera un pronóstico mensual de la anomalía de precipitación acumulada y crea un gráfico de contorno relleno para visualizar los datos en una región específica.
+
+    Args:
+        ruta_dataset (str): Ruta del conjunto de datos netCDF que contiene la variable de precipitación.
+        pais (str, optional): País o región para personalizar el gráfico. Por defecto es "sudam".
+        coord (list, optional): Coordenadas de la región de interés en el formato [lon_min, lon_max, lat_min, lat_max]. Por defecto es [-120, -30, -60, 30].
+
+    Returns:
+        None
+    """
     # Format the dates as strings
     fecha_inicial = getFechaInicial()
     # Abre el conjunto de datos netcdf
@@ -371,6 +515,17 @@ def generarPrediccionAnomaliaMensualPrecipitacion(ruta_dataset,pais="sudam",coor
     dataset.close()
 
 def generarPrediccionAnomaliaEstacionalTemperatura(ruta_dataset,pais="sudam",coord=[-120, -30, -60, 30]):
+    """
+    Genera un pronóstico estacional de la anomalía de temperatura superficial del aire y crea un gráfico de contorno relleno para visualizar los datos en una región específica.
+
+    Args:
+        ruta_dataset (str): Ruta del conjunto de datos netCDF que contiene la variable de temperatura.
+        pais (str, optional): País o región para personalizar el gráfico. Por defecto es "sudam".
+        coord (list, optional): Coordenadas de la región de interés en el formato [lon_min, lon_max, lat_min, lat_max]. Por defecto es [-120, -30, -60, 30].
+
+    Returns:
+        None
+    """
     fecha_inicial = getFechaInicial()
     fecha_final = getFechaFinal()
     # Abre el conjunto de datos netcdf
@@ -391,6 +546,17 @@ def generarPrediccionAnomaliaEstacionalTemperatura(ruta_dataset,pais="sudam",coo
     dataset.close()
 
 def generarPrediccionAnomaliaEstacionalPrecipitacion(ruta_dataset,pais="sudam",coord=[-120, -30, -60, 30]):
+    """
+    Genera un pronóstico estacional de la anomalía de precipitación acumulada y crea un gráfico de contorno relleno para visualizar los datos en una región específica.
+
+    Args:
+        ruta_dataset (str): Ruta del conjunto de datos netCDF que contiene la variable de precipitación.
+        pais (str, optional): País o región para personalizar el gráfico. Por defecto es "sudam".
+        coord (list, optional): Coordenadas de la región de interés en el formato [lon_min, lon_max, lat_min, lat_max]. Por defecto es [-120, -30, -60, 30].
+
+    Returns:
+        None
+    """
     fecha_inicial = getFechaInicial()
     fecha_final = getFechaFinal()
     # Abre el conjunto de datos netcdf
@@ -491,7 +657,14 @@ def getDiasConRangoFechas(start_date_str, end_date_str):
 
 #generarPrediccionEstacionalTemperatura('temperatura.nc','pron_tsaireECMWF_EC_estac.png',"EC",[longitud_min, longitud_max, lat_min, lat_max])
 
-""" #chile
+
+"""
+Llamada a las funciones para generar los pronosticos para el boletín de volunclima. 
+Antes de poder ejecutarlas hay que generar los datasets con generar.py
+"""
+
+
+#chile
 generarPrediccionMensualTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc',"CL",[-78, -63, -57, -17])
 generarPrediccionEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc',"CL",[-78, -63, -57, -17])
 generarPrediccionMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',"CL",[-78, -63, -57, -17])
@@ -514,7 +687,7 @@ generarPrediccionMensualTemperatura('/var/py/volunclima/salidas/datasets/tempera
 generarPrediccionEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc',"VE",[-74, -57, 0, 13])
 generarPrediccionMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',"VE",[-74, -57, 0, 13])
 generarPrediccionEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',"VE",[-74, -57, 0, 13])
-
+#
 #bolivia
 generarPrediccionMensualTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc',"BO",[-69.8, -57.375, -23, -9.625])
 generarPrediccionEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc',"BO",[-69.8, -57.375, -23, -9.625])
@@ -525,10 +698,15 @@ generarPrediccionEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/pr
 generarPrediccionMensualTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc',"GA",[-92, -89, -1.5, 1])
 generarPrediccionEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc',"GA",[-92, -89, -1.5, 1])
 generarPrediccionEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',"GA",[-92, -89, -1.5, 1])
-generarPrediccionMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',"GA",[-92, -89, -1.5, 1]) """
+generarPrediccionMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',"GA",[-92, -89, -1.5, 1])
 
+
+"""
+Llamada a las funciones para generar los pronosticos para el boletín de sequias. 
+Antes de poder ejecutarlas hay que generar los datasets con generar.py
+"""
 #generarPrediccionEstacionalTemperatura(nombre_dataset,nombre_png)
-generarPrediccionMensualTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc','sudam')
+""" generarPrediccionMensualTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc','sudam')
 generarPrediccionMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc','sudam')
 generarPrediccionEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc','sudam')
 generarPrediccionEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc','sudam')
@@ -536,4 +714,4 @@ generarPrediccionEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/pr
 generarPrediccionAnomaliaMensualTemperatura('/var/py/volunclima/salidas/datasets/temperatura_anomalia.nc','sudam')
 generarPrediccionAnomaliaMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion_anomalia.nc','sudam')
 generarPrediccionAnomaliaEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura_anomalia.nc','sudam')
-generarPrediccionAnomaliaEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion_anomalia.nc','sudam')
+generarPrediccionAnomaliaEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion_anomalia.nc','sudam') """
