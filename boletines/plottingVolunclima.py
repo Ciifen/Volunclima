@@ -9,7 +9,7 @@ import matplotlib as mpl
 import datetime as dt
 from calendar import monthrange
 import matplotlib.gridspec as gridspec
-
+import os
 
 def graficarPercepcionSequiaMensual(yyyy,mm,isoCty, dfStations, dfValues):
 	"""
@@ -248,7 +248,10 @@ def graficarPercepcionSequiaMensual(yyyy,mm,isoCty, dfStations, dfValues):
 				mpl.lines.Line2D([0], [0], color='#97221c', lw=5),
 				mpl.lines.Line2D([0], [0], color='#cccccc', lw=5)]
 	plt.legend(bbox_to_anchor=box_to_anchor, loc=loc,handles=custom_lines, labels=lstIntervalsLbls,title="   Intensidad de sequía   ",title_fontsize='small',fontsize='x-small')#https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.legend.html#matplotlib.axes.Axes.legend
-	plt.savefig("/var/py/volunclima/salidas/seq/"+isoCty+"/Volunclima-"+isoCty+'-SequiaMensual-'+str(yyyy)+'_'+str(mm)+'.png')# hay 480px width, 461px height
+	dirName="/var/py/volunclima/salidas/seq/"+isoCty
+	if not os.path.exists(dirName):
+		os.makedirs(dirName)
+	plt.savefig(dirName+"/Volunclima-"+isoCty+'-SequiaMensual-'+str(yyyy)+'_'+str(mm)+'.png')# hay 480px width, 461px height
 	plt.show()
 
 
@@ -601,7 +604,11 @@ def graficarPrecipitacionMensual(yyyy,mm,isoCty, dfStations, dfValues):
 		fig.legend(bbox_to_anchor=box_to_anchor, loc=loc,handles=custom_lines, labels=lstIntervalsLbls,title="Precipitación (mm/mes)",title_fontsize='small',fontsize='x-small')#https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.legend.html#matplotlib.axes.Axes.legend
 	else:
 		plt.legend(bbox_to_anchor=box_to_anchor, loc=loc,handles=custom_lines, labels=lstIntervalsLbls,title="Precipitación (mm/mes)",title_fontsize='small',fontsize='x-small')#https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.legend.html#matplotlib.axes.Axes.legend
-	plt.savefig("/var/py/volunclima/salidas/prec/mapas/"+isoCty+"/Volunclima-"+isoCty+'-PrecMensual-'+str(yyyy)+'_'+str(mm)+'.png')# hay 480px width, 461px height
+
+	dirName="/var/py/volunclima/salidas/prec/mapas/"+isoCty
+	if not os.path.exists(dirName):
+		os.makedirs(dirName)
+	plt.savefig(dirName+"/Volunclima-"+isoCty+'-PrecMensual-'+str(yyyy)+'_'+str(mm)+'.png')# hay 480px width, 461px height
 	plt.show()
 
 def graficarPrecipitacionDiariaRed(datDate,isoCty,dfStations,dfValues,fltTrhld):
@@ -615,7 +622,7 @@ def graficarPrecipitacionDiariaRed(datDate,isoCty,dfStations,dfValues,fltTrhld):
 	La configuración del mapa, la representación de datos, la creación de la leyenda y el guardado/
 	visualización del mapa se manejan dentro de la función. Esta función depende de bibliotecas como
 	matplotlib, numpy y Basemap para la representación del mapa y la visualización de datos.
-	
+
 	Parámetros:
 	- datDate (datetime): Fecha para la cual se están trazando los datos de precipitación.
 	- isoCty (str): Código ISO del país. Códigos de los países (EC=Ecuador, VE=Venezuela, CO=Colombia, CH=Chile, BO=Bolivia).
@@ -768,5 +775,10 @@ def graficarPrecipitacionDiariaRed(datDate,isoCty,dfStations,dfValues,fltTrhld):
 			mpl.lines.Line2D([0], [0], color='#cccccc', lw=4)]
 
 	plt.legend(bbox_to_anchor=(1,1), loc="upper left",handles=custom_lines, labels=lstIntervalsLbls,title="Precipitación (mm/día)",title_fontsize='small',fontsize='x-small')#https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.legend.html#matplotlib.axes.Axes.legend
-	plt.savefig("/var/py/volunclima/salidas/prec/mapas/"+isoCty+"/Volunclima-"+isoCty+'-PrecDD-'+str(datDate.year)+'_'+str(datDate.month)+'_'+"{:02d}".format(datDate.day)+'.png')
+
+	dirName="/var/py/volunclima/salidas/prec/mapas/"+isoCty
+	if not os.path.exists(dirName):
+		os.makedirs(dirName)
+
+	plt.savefig(dirName+"/Volunclima-"+isoCty+'-PrecDD-'+str(datDate.year)+'_'+str(datDate.month)+'_'+"{:02d}".format(datDate.day)+'.png')
 	plt.show()
