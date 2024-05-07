@@ -939,14 +939,14 @@ def enviar_flyers(MAIL_RECIEVER, nombre_observador,  server):
 	"""
 	#mensaje del email
 	msg=MIMEMultipart('mixed')
-	msg["Subject"]=" Evento de socialización de Volunclima"
+	msg["Subject"]="Volunclima: Primer webinar de introducción a la climatología"
 	msg["From"]=MAIL_USER.strip()
 
 
 	with open("/var/py/volunclima/scripts/boletines/logo_CIIFEN.png", "rb") as img:
 		image_data = img.read()
 
-	with open("/var/py/volunclima/scripts/boletines/zoom.png", "rb") as img:
+	with open("/var/py/volunclima/scripts/boletines/webinar.png", "rb") as img:
 		image_data2 = img.read()
 
 	# HTML
@@ -991,17 +991,18 @@ def enviar_flyers(MAIL_RECIEVER, nombre_observador,  server):
 	# Cuerpo del mensaje, sustituir nombre con el nombre de cada observador, todo lo que queda de codigo va dentro del for
 	msg["To"]=MAIL_RECIEVER.strip() #correo dentro del for
 	cuerpo_mensaje = ("""
-		<br><br>Estimados voluntarios, voluntarias y colaboradores de la red Volunclima,<br><br><br>Esperamos que se encuentren bien, los invitamos a la reunión de
-		<p style="font-weight: bold; display: inline;"> Encuentro y Recapitulación Volunclima 2023</p>.
-		 Presentaremos el nuevo video institucional, los manuales de observadores y<br>compartiremos con ustedes los avances que hemos tenido en la red en el año 2023.
-		 <br><br>
-		El link de la reunión  es el siguiente:    
-		<br><br>
-		<a href="https://us02web.zoom.us/j/86003264863?pwd=QkxRZ3p6aEVTNTl2cGE3WHhseWh0dz09" target="_blank">
-				https://us02web.zoom.us/j/86003264863?pwd=QkxRZ3p6aEVTNTl2cGE3WHhseWh0dz09 </a>
+		<br><br>¡Únete a nuestro primer webinar del plan de alfabetización climática de 2024!
 		<br><br><br>
-		Rectificamos la fecha de la reunión para el día miercoles 17 de enero 2024 a las 17:00 hora de Ecuador. Lamentamos la confusión con las fechas y 
-		los esperamos ese día.<br><br><br>
+		 🌍 Tema: Introducción a la Climatología.<br>📅 Fecha: miércoles 10 de abril.<br>🕔 Hora: 17h00-18h00 (EC/CO/PE).
+		 <br><br>
+		Transmisión vía Teams:    
+		<br>
+		conectate:
+		<a href="https://tinyurl.com/4m2w574s" target="_blank">
+				https://tinyurl.com/4m2w574s </a>
+		<br><br><br>
+		En este emocionante evento, exploraremos los fundamentos de la climatología y su importancia para comprender el clima local.
+		<br><br><br>
 		Saludos cordiales,<br><br>
 	""" )
 	# Agregar el cuerpo del mensaje y el HTML al objeto mensaje
@@ -1012,7 +1013,6 @@ def enviar_flyers(MAIL_RECIEVER, nombre_observador,  server):
 	#enviar el email
 	try:
 		server.send_message(msg)
-		print("boletín enviado al observador "+ nombre_observador + "(" + MAIL_RECIEVER + ")" )
 	except Exception as e:
 		print(f"An error occurred: {e}")
 
