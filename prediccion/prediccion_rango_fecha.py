@@ -11,6 +11,7 @@ import re
 import calendar
 from matplotlib.colors import BoundaryNorm
 import os
+import cartopy.util as cutil
 # Paleta de colores en formato RGB
 paleta_precipitacion_anomalia = np.array([
     [84, 65, 60],
@@ -82,11 +83,18 @@ month_name_dict = {
     
 def filled_contour(x, y, z, levels, col, xlim, ylim, zlim, antialiased=True, key_axes=None, color_palette=None, plot_axes=None,
                    ic_label=None, key_title=None, nombre_png='prediccion.png', valor_minimo=None, valor_maximo=None, medida="",pais="sudam"):
-    fig, ax = plt.subplots( subplot_kw={'projection': ccrs.PlateCarree()})
+    if pais=="pacec":
+        fig, ax = plt.subplots( subplot_kw={'projection': ccrs.PlateCarree(central_longitude=180)})
+        ax.set_extent([-60, 150, ylim[0], ylim[1]], crs=ccrs.PlateCarree(central_longitude=180))
+        #np.set_printoptions(threshold=np.inf)  # Esto establece numpy para imprimir matrices completas
+        z, x, y = cutil.add_cyclic(z.values,x=x, y=y)
+        
+    else:
+        fig, ax = plt.subplots( subplot_kw={'projection': ccrs.PlateCarree()})
+        ax.set_extent([xlim[0], xlim[1], ylim[0], ylim[1]], crs=ccrs.PlateCarree())
     ax.set_aspect('auto')  # Ajustar la relación de aspecto
     
-    # Ajustar la extensión del mapa a la región de tus datos
-    ax.set_extent([xlim[0], xlim[1], ylim[0], ylim[1]], crs=ccrs.PlateCarree())
+
     # Interpola la paleta de colores para obtener más tonos
     smooth_color_palette = mcolors.to_rgba_array(color_palette)
     new_colormap = mcolors.LinearSegmentedColormap.from_list('smooth_colormap', smooth_color_palette, N=1000)
@@ -95,7 +103,7 @@ def filled_contour(x, y, z, levels, col, xlim, ylim, zlim, antialiased=True, key
     z_clipped = np.clip(z, valor_minimo, valor_maximo)
 
     # Crear la normalización de límites para asignar colores a los niveles
-    c = plt.contourf(x, y, z_clipped, levels=levels, cmap=new_colormap, antialiased=antialiased, vmin=zlim[0], vmax=zlim[1])
+    c = plt.contourf(x, y, z_clipped, levels=levels, cmap=new_colormap, antialiased=antialiased, vmin=zlim[0], vmax=zlim[1], transform=ccrs.PlateCarree())
     #norm = BoundaryNorm(levels, ncolors=new_colormap.N, clip=True)
     #c = ax.pcolormesh(x, y, z_clipped,norm=norm, cmap=new_colormap, shading='auto', vmin=zlim[0], vmax=zlim[1])
 
@@ -133,12 +141,18 @@ def filled_contour(x, y, z, levels, col, xlim, ylim, zlim, antialiased=True, key
     elif (pais=="BO"):
         ticks_x,ticks_y=3,3
         fig.set_size_inches((7,7))
+    elif (pais=="pacec"):
+        ticks_x,ticks_y=20,20
+        fig.set_size_inches((20,7))
     else:
         fig.set_size_inches((7,6))
         ticks_x,ticks_y=20,20
     # Establecer ticks de latitud y longitud cada 20 grados y quitar etiquetas
     ax.set_yticks(np.arange(ylim[0], ylim[1] + 1, ticks_y), crs=ccrs.PlateCarree())
-    ax.set_xticks(np.arange(xlim[0], xlim[1] + 1, ticks_x), crs=ccrs.PlateCarree())
+    if pais=="pacec":
+        ax.set_xticks(np.arange(xlim[0], xlim[1] + 1, ticks_x), crs=ccrs.PlateCarree(central_longitude=180))
+    else: 
+        ax.set_xticks(np.arange(xlim[0], xlim[1] + 1, ticks_x), crs=ccrs.PlateCarree())
     ax.yaxis.tick_left()
     ax.xaxis.tick_bottom()
     lon_formatter = LongitudeFormatter(zero_direction_label=True)
@@ -378,7 +392,7 @@ def getFechaInicial():
     now = datetime.now()
     next_month_str=datetime.now()
     # Calculate the next month and four months ahead dates
-    next_month_num = int(now.month)  
+    next_month_num = int(now.month)+1  
     # If the new month is greater than 12, subtract 12 and add 1 to the year
     if next_month_num > 12:
         next_month_num = next_month_num - 12
@@ -393,7 +407,7 @@ def getFechaFinal():
     now = datetime.now()
     three_months_ahead_str=datetime.now()
     # Calculate three months ahead dates
-    three_months_ahead_num = int(now.month) + 2
+    three_months_ahead_num = int(now.month) + 3
     if three_months_ahead_num > 12:
         three_months_ahead_num = three_months_ahead_num - 12
         three_months_ahead_str = three_months_ahead_str.replace(month=three_months_ahead_num, year=now.year + 1, day=1)
@@ -417,6 +431,7 @@ def getIC(dataset):
             # Imprime la cadena para verificar
             print(ic_text)
             return f"IC: {download_date.strftime('%Y%b')}".upper()
+            #return f"IC: {download_date.strftime('%Y')}MAR".upper()
         else:
             print("No se encontró una fecha en el atributo 'history'.")
             return ""
@@ -495,12 +510,17 @@ generarPrediccionMensualTemperatura('/var/py/volunclima/salidas/datasets/tempera
 		lat_rightdown=-22.875 """
 
 #generarPrediccionEstacionalTemperatura(nombre_dataset,nombre_png)
-""" generarPrediccionMensualTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc','2024-02-01','sudam')
-generarPrediccionMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc','2024-02-01','sudam')
-generarPrediccionEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc','2024-02-01','2024-04-01','sudam')
-generarPrediccionEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc','2024-02-01','2024-04-01','sudam') """
+generarPrediccionMensualTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc',getFechaInicial(),'sudam',coord=[-120, -30, -60, 30])
+generarPrediccionMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',getFechaInicial(),'sudam',coord=[-120, -30, -60, 30])
+generarPrediccionEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc',getFechaInicial(),getFechaFinal(),'sudam',coord=[-120, -30, -60, 30])
+generarPrediccionEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',getFechaInicial(),getFechaFinal(),'sudam',coord=[-120, -30, -60, 30])
 
-""" generarPrediccionAnomaliaMensualTemperatura('/var/py/volunclima/salidas/datasets/temperatura_anomalia.nc','2024-02-01','sudam')
-generarPrediccionAnomaliaMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion_anomalia.nc','2024-02-01','sudam')
-generarPrediccionAnomaliaEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura_anomalia.nc','2024-02-01','2024-04-01','sudam')
-generarPrediccionAnomaliaEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion_anomalia.nc','2024-02-01','2024-04-01','sudam') """
+generarPrediccionAnomaliaMensualTemperatura('/var/py/volunclima/salidas/datasets/temperatura_anomalia.nc',getFechaInicial(),'sudam',coord=[-120, -30, -60, 30])
+generarPrediccionAnomaliaMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion_anomalia.nc',getFechaInicial(),'sudam',coord=[-120, -30, -60, 30])
+generarPrediccionAnomaliaEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura_anomalia.nc',getFechaInicial(),getFechaFinal(),'sudam',coord=[-120, -30, -60, 30])
+generarPrediccionAnomaliaEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion_anomalia.nc',getFechaInicial(),getFechaFinal(),'sudam',coord=[-120, -30, -60, 30])
+
+generarPrediccionMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',getFechaInicial(),'pacec',coord=[-60, 150, -60, 30])
+generarPrediccionEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',getFechaInicial(),getFechaFinal(),'pacec',coord=[-60, 150, -60, 30])
+generarPrediccionAnomaliaMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion_anomalia.nc',getFechaInicial(),'pacec',coord=[-60, 150, -60, 30])
+generarPrediccionAnomaliaEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion_anomalia.nc',getFechaInicial(),getFechaFinal(),'pacec',coord=[-60, 150, -60, 30])

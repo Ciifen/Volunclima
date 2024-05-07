@@ -203,7 +203,12 @@ def generarAnomaliaPrecipitacionAnomaliaEstacionalSuramerica(nombre_archivo='pre
     una cuenta en https://cds.climate.copernicus.eu/ e instalar la api key en el dispositivo donde se este ejecutando el codigo
     """
 
-generarTemperaturaEstacionalSuramerica()
-generarPrecipitacionEstacionalSuramerica()
-generarAnomaliaTemperaturaEstacionalSuramerica()
-generarAnomaliaPrecipitacionAnomaliaEstacionalSuramerica()
+generarTemperaturaEstacionalSuramerica(region=[ 30, -180, -60, 180])
+generarPrecipitacionEstacionalSuramerica(region=[ 30, -180, -60, 180])
+generarAnomaliaTemperaturaEstacionalSuramerica(region=[ 30, -180, -60, 180])
+generarAnomaliaPrecipitacionAnomaliaEstacionalSuramerica(region=[ 30, -180, -60, 180])
+
+""" generarTemperaturaEstacionalSuramerica(region=[ 30, -180, -60, 180],mes_str="03",year_str="2024")
+generarPrecipitacionEstacionalSuramerica(region=[ 30, -180, -60, 180],mes_str="03",year_str="2024")
+generarAnomaliaTemperaturaEstacionalSuramerica(region=[ 30, -180, -60, 180],mes_str="03",year_str="2024")
+generarAnomaliaPrecipitacionAnomaliaEstacionalSuramerica(region=[ 30, -180, -60, 180],mes_str="03",year_str="2024") """

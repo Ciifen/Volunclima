@@ -699,7 +699,7 @@ generarPrediccionMensualTemperatura('/var/py/volunclima/salidas/datasets/tempera
 generarPrediccionEstacionalTemperatura('/var/py/volunclima/salidas/datasets/temperatura.nc',"GA",[-92, -89, -1.5, 1])
 generarPrediccionEstacionalPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',"GA",[-92, -89, -1.5, 1])
 generarPrediccionMensualPrecipitacion('/var/py/volunclima/salidas/datasets/precipitacion.nc',"GA",[-92, -89, -1.5, 1])
-
+ 
 
 """
 Llamada a las funciones para generar los pronosticos para el boletín de sequias. 
