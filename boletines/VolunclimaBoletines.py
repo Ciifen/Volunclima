@@ -487,11 +487,11 @@ def enviar_boletines_por_estacion(MAIL_RECIEVER, nombre_observador, codigo, esta
 		print(f"An error occurred: {e}")
 
 
-#funciona de enviar correos para todas las estaciones
+#funcion de enviar correos para todas las estaciones
 def enviar_boletines(MAIL_RECIEVER, nombre_observador, archivo, mIni, yIni, strCountry, dfObs, server):
 	"""
 	Envía un boletín mensual por correo electrónico a un observador de la red Volunclima.
-	
+
 	Args:
 		MAIL_RECIEVER (str): Dirección de correo electrónico del receptor.
 		nombre_observador (str): Nombre del observador.
@@ -501,18 +501,18 @@ def enviar_boletines(MAIL_RECIEVER, nombre_observador, archivo, mIni, yIni, strC
 		strCountry (str): Nombre del país.
 		dfObs (DataFrame): DataFrame de observaciones.
 		server (smtplib.SMTP): Objeto de conexión SMTP.
-	
+
 	Returns:
 		None
-	
+
 	Nota:
 		Esta función envía un boletín mensual por correo electrónico a un observador de la red Volunclima.
 		El boletín incluye información climática del mes para la red Volunclima en un país específico.
 		Adjunta un archivo de boletín en formato PDF al correo electrónico.
 
 	Raises:
-	None
-	"""
+		None
+	"""	
 	mes = formato_mes(mIni).lower()
 
 	#mensaje del email
@@ -571,6 +571,7 @@ def enviar_boletines(MAIL_RECIEVER, nombre_observador, archivo, mIni, yIni, strC
 		print("boletín enviado al observador "+ nombre_observador + "(" + MAIL_RECIEVER + ")" )
 	except:
 		print(f"An error occurred: {e}")
+
 
 def email_login():
 	try:
